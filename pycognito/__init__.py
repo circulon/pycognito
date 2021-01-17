@@ -729,3 +729,29 @@ class Cognito:
         """
         response = self.client.list_groups(UserPoolId=self.user_pool_id)
         return [self.get_group_obj(group_data) for group_data in response.get("Groups")]
+
+    def admin_add_user_to_group(self, username, group_name):
+        """
+        Add the user to the specified group
+        :param username: the username
+        :param group_name: the name of the group to add the user to
+        :return:
+        """
+        self.client.admin_add_user_to_group(
+            UserPoolId=self.user_pool_id,
+            Username=username,
+            GroupName=group_name,
+        )
+
+    def admin_remove_user_from_group(self, username, group_name):
+        """
+        Remove the user from the specified group
+        :param username: the username
+        :param group_name: the name of the group to add the user to
+        :return:
+        """
+        self.client.admin_remove_user_FROM_group(
+            UserPoolId=self.user_pool_id,
+            Username=username,
+            GroupName=group_name,
+        )
