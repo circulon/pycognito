@@ -747,22 +747,32 @@ class Cognito:
         """
         Remove the user from the specified group
         :param username: the username
-        :param group_name: the name of the group to add the user to
+        :param group_name: the name of the group to remove the user from
         :return:
         """
-        self.client.admin_remove_user_FROM_group(
+        self.client.admin_remove_user_from_group(
             UserPoolId=self.user_pool_id,
             Username=username,
             GroupName=group_name,
         )
 
     def admin_enable_user(self, username):
+        """
+        Enable a user
+        :param username:
+        :return:
+        """
         self.client.admin_enable_user(
             UserPoolId=self.user_pool_id,
             Username=username,
         )
 
     def admin_disable_user(self, username):
+        """
+        Disable a user
+        :param username:
+        :return:
+        """
         self.client.admin_disable_user(
             UserPoolId=self.user_pool_id,
             Username=self.username,
