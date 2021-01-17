@@ -755,3 +755,15 @@ class Cognito:
             Username=username,
             GroupName=group_name,
         )
+
+    def admin_enable_user(self, username):
+        self.client.admin_enable_user(
+            UserPoolId=self.user_pool_id,
+            Username=username,
+        )
+
+    def admin_disable_user(self, username):
+        self.client.admin_disable_user(
+            UserPoolId=self.user_pool_id,
+            Username=self.username,
+        )
