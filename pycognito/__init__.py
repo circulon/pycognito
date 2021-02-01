@@ -762,25 +762,24 @@ class Cognito:
         :param username:
         :return: List
         """
+
         def process_groups_response(groups_response):
             groups = []
-            for group_dict in groups_response['Groups']:
-                groups.append(group_dict['GroupName'])
+            for group_dict in groups_response["Groups"]:
+                groups.append(group_dict["GroupName"])
             return groups
 
         groups_response = self.client.admin_list_groups_for_user(
-            Username=username,
-            UserPoolId=self.user_pool_id,
-            Limit=60
+            Username=username, UserPoolId=self.user_pool_id, Limit=60
         )
         user_groups = process_groups_response(groups_response)
 
-        while 'NextToken' in groups_response.keys():
+        while "NextToken" in groups_response.keys():
             groups_response = self.client.admin_list_groups_for_user(
                 Username=username,
                 UserPoolId=self.user_pool_id,
                 Limit=60,
-                NextToken=groups_response['NextToken']
+                NextToken=groups_response["NextToken"],
             )
             new_groups = process_groups_response(groups_response)
             user_groups.extend(new_groups)
