@@ -756,6 +756,37 @@ class Cognito:
             GroupName=group_name,
         )
 
+    def admin_list_groups_for_user(self, username):
+        """
+        Get the list of groups a user belongs to
+        :param username:
+        :return: List
+        """
+        def process_groups_response(groups_response):
+            groups = []
+            for group_dict in groups_response['Groups']:
+                groups.append(group_dict['GroupName'])
+            return groups
+
+        groups_response = self.client.admin_list_groups_for_user(
+            Username=username,
+            UserPoolId=self.user_pool_id,
+            Limit=60
+        )
+        user_groups = process_groups_response(groups_response)
+
+        while 'NextToken' in groups_response.keys():
+            groups_response = self.client.admin_list_groups_for_user(
+                Username=username,
+                UserPoolId=self.user_pool_id,
+                Limit=60,
+                NextToken=groups_response['NextToken']
+            )
+            new_groups = process_groups_response(groups_response)
+            user_groups.extend(new_groups)
+
+        return user_groups
+
     def admin_enable_user(self, username):
         """
         Enable a user
