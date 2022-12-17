@@ -226,7 +226,7 @@ class AWSSRP:
         return f"{WEEKDAY_NAMES[input_datetime.weekday()]} {MONTH_NAMES[input_datetime.month - 1]} {input_datetime.day:d} {input_datetime.hour:02d}:{input_datetime.minute:02d}:{input_datetime.second:02d} UTC {input_datetime.year:d}"
 
     def process_challenge(self, challenge_parameters):
-        internal_username = challenge_parameters["USERNAME"]
+        internal_username = challenge_parameters.get("USERNAME", self.username)
         user_id_for_srp = challenge_parameters["USER_ID_FOR_SRP"]
         salt_hex = challenge_parameters["SALT"]
         srp_b_hex = challenge_parameters["SRP_B"]
