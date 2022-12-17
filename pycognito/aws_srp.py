@@ -226,7 +226,9 @@ class AWSSRP:
         return f"{WEEKDAY_NAMES[input_datetime.weekday()]} {MONTH_NAMES[input_datetime.month - 1]} {input_datetime.day:d} {input_datetime.hour:02d}:{input_datetime.minute:02d}:{input_datetime.second:02d} UTC {input_datetime.year:d}"
 
     def process_challenge(self, challenge_parameters, request_parameters):
-        internal_username = challenge_parameters.get("USERNAME", request_parameters["USERNAME"])
+        internal_username = challenge_parameters.get(
+            "USERNAME", request_parameters["USERNAME"]
+        )
         user_id_for_srp = challenge_parameters["USER_ID_FOR_SRP"]
         salt_hex = challenge_parameters["SALT"]
         srp_b_hex = challenge_parameters["SRP_B"]
@@ -270,7 +272,9 @@ class AWSSRP:
             ClientId=self.client_id,
         )
         if response["ChallengeName"] == self.PASSWORD_VERIFIER_CHALLENGE:
-            challenge_response = self.process_challenge(response["ChallengeParameters"], auth_params)
+            challenge_response = self.process_challenge(
+                response["ChallengeParameters"], auth_params
+            )
             tokens = boto_client.respond_to_auth_challenge(
                 ClientId=self.client_id,
                 ChallengeName=self.PASSWORD_VERIFIER_CHALLENGE,
@@ -306,7 +310,9 @@ class AWSSRP:
             ClientId=self.client_id,
         )
         if response["ChallengeName"] == self.PASSWORD_VERIFIER_CHALLENGE:
-            challenge_response = self.process_challenge(response["ChallengeParameters"], auth_params)
+            challenge_response = self.process_challenge(
+                response["ChallengeParameters"], auth_params
+            )
             tokens = boto_client.respond_to_auth_challenge(
                 ClientId=self.client_id,
                 ChallengeName=self.PASSWORD_VERIFIER_CHALLENGE,
