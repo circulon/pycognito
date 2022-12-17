@@ -195,6 +195,8 @@ class Cognito:
         if access_key and secret_key:
             boto3_client_kwargs["aws_access_key_id"] = access_key
             boto3_client_kwargs["aws_secret_access_key"] = secret_key
+        self.pool_domain_url = boto3_client_kwargs.get("endpoint_url", None)
+
         if self.user_pool_region:
             boto3_client_kwargs["region_name"] = self.user_pool_region
         if botocore_config:
@@ -207,6 +209,9 @@ class Cognito:
 
     @property
     def user_pool_url(self):
+        if self.pool_domain_url:
+            return f"{self.pool_domain_url}/{self.user_pool_id}"
+
         return f"https://cognito-idp.{self.user_pool_region}.amazonaws.com/{self.user_pool_id}"
 
     def get_keys(self):
