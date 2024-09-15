@@ -742,7 +742,7 @@ class Cognito:
             UserPoolId=self.user_pool_id,
             Username=username,
             Password=passqord,
-            Permanent=permanent
+            Permanent=permanent,
         )
 
     def confirm_forgot_password(self, confirmation_code, password):
