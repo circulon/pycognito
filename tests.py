@@ -1,4 +1,6 @@
 import datetime
+import gzip
+import json
 import unittest
 import os.path
 from unittest.mock import patch
@@ -456,9 +458,12 @@ class UtilsTestCase(unittest.TestCase):
     def test_srp_requests_http_auth(self, m):
         # Get Moto's static public jwks
         jwks_public_key_filename = os.path.join(
-            os.path.dirname(moto.cognitoidp.__file__), "resources/jwks-public.json"
+            os.path.dirname(moto.cognitoidp.__file__), "resources/jwks-public.json.gz"
         )
-        jwks_public_key_f = open(jwks_public_key_filename, "rb")
+
+        with gzip.open(jwks_public_key_filename, "rb") as f:
+            json_bytes = f.read()
+        jwks_public_keys = json.loads(json_bytes.decode("utf-8"))
 
         # Create some test data
         test_data = str(uuid.uuid4())
@@ -469,7 +474,7 @@ class UtilsTestCase(unittest.TestCase):
         # key from above
         m.get(
             f"https://cognito-idp.us-east-1.amazonaws.com/{self.user_pool_id}/.well-known/jwks.json",
-            body=jwks_public_key_f,
+            json=jwks_public_keys,
         )
 
         now = datetime.datetime.utcnow()
