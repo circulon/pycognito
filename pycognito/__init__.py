@@ -2,6 +2,7 @@ import ast
 import base64
 import datetime
 import re
+from typing import Union
 
 import boto3
 from envs import env
@@ -234,21 +235,21 @@ class Cognito:
 
         return f"https://cognito-idp.{self.user_pool_region}.amazonaws.com/{self.user_pool_id}"
 
-    def get_users_pagination_token(self) -> str | None:
+    def get_users_pagination_token(self) -> Union[str, None]:
         """
         Returns the pagination token set by the get_users call
         :return: str token or None if no more results to request
         """
         return self._users_pagination_next_token
 
-    def get_groups_pagination_token(self) -> str | None:
+    def get_groups_pagination_token(self) -> Union[str, None]:
         """
         Returns the pagination token set by the get_group call
         :return: str token or None if no more results to request
         """
         return self._groups_pagination_next_token
 
-    def get_clients_pagination_token(self) -> str | None:
+    def get_clients_pagination_token(self) -> Union[str, None]:
         """
         Returns the pagination token set by the list_user_pool_clients call
         :return: str token or None if no more results to request
@@ -642,9 +643,9 @@ class Cognito:
     def get_users(
         self,
         attr_map=None,
-        pool_id: str | None = None,
-        page_limit: int | None = None,
-        page_token: str | None = None,
+        pool_id: Union[str, None] = None,
+        page_limit: Union[int, None] = None,
+        page_token: Union[str, None] = None,
     ) -> list[UserObj]:
         """
         Returns all users for a user pool. Returns instances of the
@@ -907,9 +908,9 @@ class Cognito:
 
     def get_groups(
         self,
-        pool_id: str | None = None,
-        page_limit: int | None = None,
-        page_token: str | None = None,
+        pool_id: Union[str, None] = None,
+        page_limit: Union[int, None] = None,
+        page_token: Union[str, None] = None,
     ) -> list[GroupObj]:
         """
         Returns all groups for a user pool. If page_limit is set then it
@@ -1068,9 +1069,9 @@ class Cognito:
 
     def list_user_pool_clients(
         self,
-        pool_id: str | None = None,
-        page_limit: int | None = None,
-        page_token: str | None = None,
+        pool_id: Union[str, None] = None,
+        page_limit: Union[int, None] = None,
+        page_token: Union[str, None] = None,
     ) -> list[dict]:
         """
         Returns configuration information of a user pool's clients. If page limit is set
