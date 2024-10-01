@@ -2,7 +2,7 @@ import ast
 import base64
 import datetime
 import re
-from typing import Union
+from typing import Union, List
 
 import boto3
 from envs import env
@@ -646,7 +646,7 @@ class Cognito:
         pool_id: Union[str, None] = None,
         page_limit: Union[int, None] = None,
         page_token: Union[str, None] = None,
-    ) -> list[UserObj]:
+    ) -> List[UserObj]:
         """
         Returns all users for a user pool. Returns instances of the
         self.user_class. If page_limit is set then it will return that many (0 to 60)
@@ -911,7 +911,7 @@ class Cognito:
         pool_id: Union[str, None] = None,
         page_limit: Union[int, None] = None,
         page_token: Union[str, None] = None,
-    ) -> list[GroupObj]:
+    ) -> List[GroupObj]:
         """
         Returns all groups for a user pool. If page_limit is set then it
         will return that many (0 to 60) while setting self._groups_pagination_next_token
@@ -1072,7 +1072,7 @@ class Cognito:
         pool_id: Union[str, None] = None,
         page_limit: Union[int, None] = None,
         page_token: Union[str, None] = None,
-    ) -> list[dict]:
+    ) -> List[dict]:
         """
         Returns configuration information of a user pool's clients. If page limit is set
         then it will return that many (0 to 60) while setting self._clients_pagination_next_token
