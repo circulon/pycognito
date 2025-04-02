@@ -274,6 +274,8 @@ class Cognito:
     def get_key(self, kid):
         keys = self.get_keys().get("keys")
         key = list(filter(lambda x: x.get("kid") == kid, keys))
+        if not key:
+            raise jwt.PyJWTError("Token Expired")
         return key[0]
 
     def verify_tokens(self):
@@ -289,10 +291,10 @@ class Cognito:
     def verify_token(self, token, id_name, token_use):
         # https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-tokens-verifying-a-jwt.html
 
-        kid = jwt.get_unverified_header(token).get("kid")
-        hmac_key = jwt.api_jwk.PyJWK(self.get_key(kid)).key
-        required_claims = (["aud"] if token_use != "access" else []) + ["iss", "exp"]
         try:
+            kid = jwt.get_unverified_header(token).get("kid")
+            hmac_key = jwt.api_jwk.PyJWK(self.get_key(kid)).key
+            required_claims = (["aud"] if token_use != "access" else []) + ["iss", "exp"]
             decoded = jwt.api_jwt.decode_complete(
                 token,
                 hmac_key,
