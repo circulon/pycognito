@@ -294,7 +294,10 @@ class Cognito:
         try:
             kid = jwt.get_unverified_header(token).get("kid")
             hmac_key = jwt.api_jwk.PyJWK(self.get_key(kid)).key
-            required_claims = (["aud"] if token_use != "access" else []) + ["iss", "exp"]
+            required_claims = (["aud"] if token_use != "access" else []) + [
+                "iss",
+                "exp",
+            ]
             decoded = jwt.api_jwt.decode_complete(
                 token,
                 hmac_key,
