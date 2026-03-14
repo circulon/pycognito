@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "setuptools >= 80",
+    "setuptools>=80",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -11,26 +11,26 @@ exclude = ["tests_*"]
 
 [tool.ruff.lint]
 extend-select = [
-    "W",    # pycodestyle warnings
-    "I",    # isort
-    "PL",   # pylint (PLC, PLE, PLR, PLW)
-    "ARG",  # flake8-unused-arguments (replaces pylint unused-argument)
-    "BLE",  # flake8-blind-except     (replaces pylint overgeneral-exceptions)
+    "W",
+    "I",
+    "PL",
+    "ARG",
+    "BLE",
 ]
 ignore = [
-    # pylint: unused-argument — generic callbacks and setup methods
-    "ARG001",   # unused function argument
-    "ARG002",   # unused method argument
+    "ARG001",
+    "ARG002",
 
     # pylint: global-statement
     "PLW0603",
 
-    "PLR0904",  # too-many-public-methods
-    "PLR0911",  # too-many-return-statements
-    "PLR0912",  # too-many-branches
-    "PLR0913",  # too-many-arguments
-    "PLR0914",  # too-many-locals
-    "PLR0915",  # too-many-statements
+    "PLR0904",
+    "PLR0911",
+    "PLR0912",
+    "PLR0913",
+    "PLR0914",
+    "PLR0915",
+    "PLR2004"
 ]
 
 [tool.ruff.lint.isort]

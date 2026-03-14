@@ -1,6 +1,7 @@
 ruff
-coverage==7.13.4
-pytest==9.0.2
+# minimum version of coverage for python 3.9+
+coverage>=7.10
+pytest>=8.0
 moto[cognitoidp]>=5.1.22
-requests-mock==1.12.1
-freezegun==1.5.5
+requests-mock>=1.12.1
+freezegun>=1.5.5
