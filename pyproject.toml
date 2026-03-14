@@ -1,5 +1,39 @@
 [build-system]
 requires = [
-    "setuptools >= 64",
+    "setuptools >= 80",
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+exclude = ["tests_*"]
+
+[tool.ruff.lint]
+extend-select = [
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "PL",   # pylint (PLC, PLE, PLR, PLW)
+    "ARG",  # flake8-unused-arguments (replaces pylint unused-argument)
+    "BLE",  # flake8-blind-except     (replaces pylint overgeneral-exceptions)
+]
+ignore = [
+    # pylint: unused-argument — generic callbacks and setup methods
+    "ARG001",   # unused function argument
+    "ARG002",   # unused method argument
+
+    # pylint: global-statement
+    "PLW0603",
+
+    "PLR0904",  # too-many-public-methods
+    "PLR0911",  # too-many-return-statements
+    "PLR0912",  # too-many-branches
+    "PLR0913",  # too-many-arguments
+    "PLR0914",  # too-many-locals
+    "PLR0915",  # too-many-statements
+]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+combine-as-imports = true
+forced-separate = ["tests"]

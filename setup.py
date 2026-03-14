@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 VERSION = "2025.4.1"
 
@@ -11,11 +11,11 @@ setup(
     long_description=Path("README.md").read_text(),
     long_description_content_type="text/markdown",
     classifiers=[
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Environment :: Web Environment",
     ],
@@ -35,4 +35,7 @@ setup(
     include_package_data=True,
     python_requires=">=3.8",
     zip_safe=True,
+    extras_require={
+        "dev": ["ruff", "pre-commit"],
+    },
 )
