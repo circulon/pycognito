@@ -5,16 +5,16 @@ import hashlib
 import hmac
 import json
 import os
-import re
 import platform
-import requests
+import re
 
 import boto3
+import requests
 
 from .exceptions import (
     ForceChangePasswordException,
-    SoftwareTokenMFAChallengeException,
     SMSMFAChallengeException,
+    SoftwareTokenMFAChallengeException,
 )
 
 # https://github.com/aws/amazon-cognito-identity-js/blob/master/src/AuthenticationHelper.js#L22
@@ -147,7 +147,6 @@ def generate_hash_device(device_group_key, device_key):
 
 
 class AWSSRP:
-
     SMS_MFA_CHALLENGE = "SMS_MFA"
     SOFTWARE_TOKEN_MFA_CHALLENGE = "SOFTWARE_TOKEN_MFA"
     NEW_PASSWORD_REQUIRED_CHALLENGE = "NEW_PASSWORD_REQUIRED"

@@ -1,7 +1,7 @@
 from enum import Enum
 
-import requests.auth
 import requests
+import requests.auth
 
 from . import Cognito
 

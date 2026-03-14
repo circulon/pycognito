@@ -2,7 +2,7 @@ import ast
 import base64
 import datetime
 import re
-from typing import Union, List
+from typing import List, Union
 
 import boto3
 from envs import env
@@ -10,7 +10,7 @@ import jwt
 import requests
 
 from .aws_srp import AWSSRP
-from .exceptions import TokenVerificationException, MFAChallengeException
+from .exceptions import MFAChallengeException, TokenVerificationException
 
 
 def cognito_to_dict(attr_list, attr_map=None):
@@ -155,7 +155,6 @@ class GroupObj:
 
 
 class Cognito:
-
     user_class = UserObj
     group_class = GroupObj
 

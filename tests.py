@@ -1,27 +1,27 @@
 import datetime
 import gzip
 import json
-import unittest
 import os.path
+import unittest
 from unittest.mock import patch
 import uuid
 
-import freezegun
-import moto
-import moto.cognitoidp
 import boto3
 from botocore.exceptions import ParamValidationError
 from botocore.stub import Stubber
 from envs import env
+import freezegun
+import moto
+import moto.cognitoidp
 import requests
 import requests_mock
 
 from pycognito import (
-    is_cognito_attr_list,
     Cognito,
-    UserObj,
     GroupObj,
     TokenVerificationException,
+    UserObj,
+    is_cognito_attr_list,
 )
 from pycognito.aws_srp import AWSSRP
 from pycognito.utils import RequestsSrpAuth
