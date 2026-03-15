@@ -2,6 +2,11 @@
 
 Makes working with AWS Cognito easier for Python developers.
 
+> **Fork notice** — This is an actively maintained fork of
+> [pvizeli/pycognito](https://github.com/pvizeli/pycognito).
+> Full credit to the original authors; this fork exists to continue
+> development after the upstream repository became inactive.
+
 ## Getting Started
 
 - [Python Versions Supported](#python-versions-supported)
@@ -45,11 +50,11 @@ Makes working with AWS Cognito easier for Python developers.
 
 ## Python Versions Supported
 
-- 3.8
 - 3.9
 - 3.10
 - 3.11
 - 3.12
+- 3.13
 
 ## Install
 
