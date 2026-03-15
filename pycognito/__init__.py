@@ -76,10 +76,10 @@ def camel_to_snake(camel_str):
 def snake_to_camel(snake_str):
     """
     :param snake_str: string
-    :return: string converted from a snake_case to a CamelCase
+    :return: string converted from a snake_case to a camelCase
     """
     components = snake_str.split("_")
-    return "".join(x.title() for x in components)
+    return components[0] + "".join(x.title() for x in components[1:])
 
 
 class UserObj:
