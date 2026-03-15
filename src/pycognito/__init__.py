@@ -1,10 +1,10 @@
 import ast
 import base64
+from os import environ
 import re
 from typing import List, Union
 
 import boto3
-from envs import env
 import jwt
 import pendulum
 import requests
@@ -260,7 +260,7 @@ class Cognito:
             return self.pool_jwk
 
         # Check for the dictionary in environment variables.
-        pool_jwk_env = env("COGNITO_JWKS", {}, var_type="dict")
+        pool_jwk_env = environ.get("COGNITO_JWKS") or {}
         if pool_jwk_env:
             self.pool_jwk = pool_jwk_env
         # If it is not there use the requests library to get it

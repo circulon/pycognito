@@ -1,18 +1,19 @@
+from os import environ
 import unittest
-
-from envs import env
 
 from src.pycognito import Cognito, GroupObj, UserObj
 
 
 class UserObjTestCase(unittest.TestCase):
     def setUp(self):
-        if env("USE_CLIENT_SECRET", "False") == "True":
-            self.app_id = env("COGNITO_APP_WITH_SECRET_ID")
+        if environ.get("USE_CLIENT_SECRET", "False") == "True":
+            self.app_id = environ.get("COGNITO_APP_WITH_SECRET_ID")
         else:
-            self.app_id = env("COGNITO_APP_ID")
-        self.cognito_user_pool_id = env("COGNITO_USER_POOL_ID", "us-east-1_123456789")
-        self.username = env("COGNITO_TEST_USERNAME")
+            self.app_id = environ.get("COGNITO_APP_ID")
+        self.cognito_user_pool_id = environ.get(
+            "COGNITO_USER_POOL_ID", "us-east-1_123456789"
+        )
+        self.username = environ.get("COGNITO_TEST_USERNAME")
 
         self.user = Cognito(
             user_pool_id=self.cognito_user_pool_id,
@@ -38,11 +39,13 @@ class UserObjTestCase(unittest.TestCase):
 
 class GroupObjTestCase(unittest.TestCase):
     def setUp(self):
-        if env("USE_CLIENT_SECRET", "False") == "True":
-            self.app_id = env("COGNITO_APP_WITH_SECRET_ID")
+        if environ.get("USE_CLIENT_SECRET", "False") == "True":
+            self.app_id = environ.get("COGNITO_APP_WITH_SECRET_ID")
         else:
-            self.app_id = env("COGNITO_APP_ID")
-        self.cognito_user_pool_id = env("COGNITO_USER_POOL_ID", "us-east-1_123456789")
+            self.app_id = environ.get("COGNITO_APP_ID")
+        self.cognito_user_pool_id = environ.get(
+            "COGNITO_USER_POOL_ID", "us-east-1_123456789"
+        )
         self.group_data = {"GroupName": "test_group", "Precedence": 1}
         self.cognito_obj = Cognito(
             user_pool_id=self.cognito_user_pool_id, client_id=self.app_id
