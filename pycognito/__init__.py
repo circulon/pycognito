@@ -755,12 +755,12 @@ class Cognito:
         response.pop("ResponseMetadata")
         return response
 
-    def admin_set_user_password(self, username, passqord, permanent=False):
+    def admin_set_user_password(self, username, password, permanent=False):
         """
         Explicitly set a users password and optionaly set their status as
         'Confirmed' when Permanent=True
         :param username: the cognito username
-        :param passqord: the password to set for the user
+        :param password: the password to set for the user
         :param permanent: set the password type -
         if True user status will be set to 'Confirmed',
         if False user status will be set to 'FORCE_CHANGE_PASSWORD'
@@ -768,7 +768,7 @@ class Cognito:
         self.client.admin_set_user_password(
             UserPoolId=self.user_pool_id,
             Username=username,
-            Password=passqord,
+            Password=password,
             Permanent=permanent,
         )
 
