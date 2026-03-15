@@ -1,4 +1,4 @@
-import datetime
+import base64
 import gzip
 import json
 import os.path
@@ -10,9 +10,9 @@ import boto3
 from botocore.exceptions import ParamValidationError
 from botocore.stub import Stubber
 from envs import env
-import freezegun
 import moto
 import moto.cognitoidp
+import pendulum
 import requests
 import requests_mock
 
@@ -25,6 +25,10 @@ from pycognito import (
 )
 from pycognito.aws_srp import AWSSRP
 from pycognito.utils import RequestsSrpAuth
+
+# ---------------------------------------------------------------------------
+# Shared mock helpers
+# ---------------------------------------------------------------------------
 
 
 def _mock_authenticate_user(_, client=None, client_metadata=None):
@@ -119,7 +123,6 @@ class CognitoAuthTestCase(unittest.TestCase):
     @patch("pycognito.aws_srp.AWSSRP.authenticate_user", _mock_authenticate_user)
     @patch("pycognito.Cognito.verify_token", _mock_verify_tokens)
     def test_authenticate(self):
-
         self.user.authenticate(self.password)
         self.assertNotEqual(self.user.access_token, None)
         self.assertNotEqual(self.user.id_token, None)
@@ -148,7 +151,6 @@ class CognitoAuthTestCase(unittest.TestCase):
             gender="Male",
             preferred_username="billyocean",
         )
-
         user.set_base_attributes(**base_attr)
         user.register("sampleuser", "sample4#Password")
 
@@ -156,11 +158,7 @@ class CognitoAuthTestCase(unittest.TestCase):
     @patch("pycognito.Cognito.verify_token", _mock_verify_tokens)
     @patch("pycognito.Cognito._add_secret_hash", return_value=None)
     def test_renew_tokens(self, _):
-
         stub = Stubber(self.user.client)
-
-        # By the stubber nature, we need to add the sequence
-        # of calls for the AWS SRP auth to test the whole process
         stub.add_response(
             method="initiate_auth",
             service_response={
@@ -194,7 +192,6 @@ class CognitoAuthTestCase(unittest.TestCase):
 
     def test_admin_get_user(self):
         stub = Stubber(self.user.client)
-
         stub.add_response(
             method="admin_get_user",
             service_response={
@@ -215,7 +212,7 @@ class CognitoAuthTestCase(unittest.TestCase):
             stub.assert_no_pending_responses()
 
     def test_check_token(self):
-        # This is a sample JWT with an expiration time set to January, 1st, 3000
+        # JWT with exp set to January 1st, 3000 — should not be expired.
         self.user.access_token = (
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG"
             "9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjMyNTAzNjgwMDAwfQ.C-1gPxrhUsiWeCvMvaZuuQYarkDNAc"
@@ -227,6 +224,38 @@ class CognitoAuthTestCase(unittest.TestCase):
             self.skipTest("This test requires 64-bit time_t")
         else:
             self.assertFalse(valid)
+
+    def test_check_token_uses_utc(self):
+        """
+        Regression: check_token must compare against UTC, not local time.
+        Patch pendulum.now directly so the boundary is evaluated correctly
+        regardless of the system timezone.
+        """
+        # JWT whose exp is exactly pendulum.datetime(2024, 6, 1, 12, 0, 0, tz="UTC")
+        # as a Unix timestamp: 1717243200
+        # We build a minimal unsigned token — check_token decodes without
+        # verifying the signature, so the alg/payload is all that matters.
+
+        def _b64(data):
+            return (
+                base64.urlsafe_b64encode(json.dumps(data).encode())
+                .rstrip(b"=")
+                .decode()
+            )
+
+        exp_ts = int(pendulum.datetime(2024, 6, 1, 12, 0, 0, tz="UTC").timestamp())
+        token = f"{_b64({'alg': 'HS256', 'typ': 'JWT'})}.{_b64({'exp': exp_ts, 'sub': 'test'})}.fakesig"
+        self.user.access_token = token
+
+        # One second before expiry → not expired
+        one_before = pendulum.datetime(2024, 6, 1, 11, 59, 59, tz="UTC")
+        with patch("pendulum.now", return_value=one_before):
+            self.assertFalse(self.user.check_token(renew=False))
+
+        # One second after expiry → expired
+        one_after = pendulum.datetime(2024, 6, 1, 12, 0, 1, tz="UTC")
+        with patch("pendulum.now", return_value=one_after):
+            self.assertTrue(self.user.check_token(renew=False))
 
     @patch("pycognito.Cognito", autospec=True)
     def test_validate_verification(self, cognito_user):
@@ -244,12 +273,9 @@ class CognitoAuthTestCase(unittest.TestCase):
     @patch("pycognito.Cognito.verify_token", _mock_verify_tokens)
     @patch("pycognito.Cognito.check_token", return_value=True)
     def test_change_password(self, _):
-        # u = cognito_user(self.cognito_user_pool_id, self.app_id,
-        #                  username=self.username)
         self.user.authenticate(self.password)
 
         stub = Stubber(self.user.client)
-
         stub.add_response(
             method="change_password",
             service_response={"ResponseMetadata": {"HTTPStatusCode": 200}},
@@ -278,9 +304,6 @@ class CognitoAuthTestCase(unittest.TestCase):
     def test_admin_authenticate(self):
 
         stub = Stubber(self.user.client)
-
-        # By the stubber nature, we need to add the sequence
-        # of calls for the AWS SRP auth to test the whole process
         stub.add_response(
             method="admin_initiate_auth",
             service_response={
@@ -336,11 +359,7 @@ class AWSSRPTestCase(unittest.TestCase):
     @patch("pycognito.aws_srp.AWSSRP.get_auth_params", _mock_get_params)
     @patch("pycognito.aws_srp.AWSSRP.process_challenge", return_value={})
     def test_authenticate_user(self, _):
-
         stub = Stubber(self.aws.client)
-
-        # By the stubber nature, we need to add the sequence
-        # of calls for the AWS SRP auth to test the whole process
         stub.add_response(
             method="initiate_auth",
             service_response={
@@ -353,7 +372,6 @@ class AWSSRPTestCase(unittest.TestCase):
                 "ClientId": self.app_id,
             },
         )
-
         stub.add_response(
             method="respond_to_auth_challenge",
             service_response={
@@ -378,33 +396,80 @@ class AWSSRPTestCase(unittest.TestCase):
             stub.assert_no_pending_responses()
 
     def test_cognito_formatted_timestamp(self):
+        """
+        get_cognito_formatted_timestamp now accepts pendulum DateTime objects.
+        The format must match Cognito's expected pattern:
+        'Www Mmm D HH:MM:SS UTC YYYY' — no leading zero on single-digit days.
+        """
         self.assertEqual(
             self.aws.get_cognito_formatted_timestamp(
-                datetime.datetime(2022, 1, 1, 0, 0, 0)
+                pendulum.datetime(2022, 1, 1, 0, 0, 0, tz="UTC")
             ),
             "Sat Jan 1 00:00:00 UTC 2022",
         )
-
         self.assertEqual(
             self.aws.get_cognito_formatted_timestamp(
-                datetime.datetime(2022, 1, 2, 12, 0, 0)
+                pendulum.datetime(2022, 1, 2, 12, 0, 0, tz="UTC")
             ),
             "Sun Jan 2 12:00:00 UTC 2022",
         )
-
         self.assertEqual(
             self.aws.get_cognito_formatted_timestamp(
-                datetime.datetime(2022, 1, 3, 9, 0, 0)
+                pendulum.datetime(2022, 1, 3, 9, 0, 0, tz="UTC")
             ),
             "Mon Jan 3 09:00:00 UTC 2022",
         )
-
         self.assertEqual(
             self.aws.get_cognito_formatted_timestamp(
-                datetime.datetime(2022, 12, 31, 23, 59, 59)
+                pendulum.datetime(2022, 12, 31, 23, 59, 59, tz="UTC")
             ),
             "Sat Dec 31 23:59:59 UTC 2022",
         )
+
+    def test_cognito_formatted_timestamp_no_leading_zero(self):
+        """
+        Cognito requires no leading zero on single-digit day numbers.
+        Previously this was stripped with re.sub; pendulum's D token handles
+        it natively. Verify the old re.sub behaviour is gone and the output
+        is still correct.
+        """
+        result = self.aws.get_cognito_formatted_timestamp(
+            pendulum.datetime(2022, 3, 5, 8, 0, 0, tz="UTC")
+        )
+        self.assertEqual(result, "Sat Mar 5 08:00:00 UTC 2022")
+        # Must not contain ' 05 ' (leading-zero form)
+        self.assertNotIn(" 05 ", result)
+
+    def test_process_challenge_timestamp_is_utc(self):
+        """
+        process_challenge must embed a UTC timestamp; verify the string
+        contains 'UTC' and matches Cognito's format when frozen in time.
+        """
+        frozen_moment = pendulum.datetime(2024, 3, 7, 15, 30, 0, tz="UTC")
+        challenge_parameters = {
+            "USERNAME": self.username or "testuser",
+            "USER_ID_FOR_SRP": self.username or "testuser",
+            "SALT": "00" * 16,
+            "SRP_B": "00" * 16,
+            "SECRET_BLOCK": "",
+        }
+        # Patch pendulum.now so the embedded TIMESTAMP is deterministic,
+        # and mock the HKDF/HMAC so we only need to inspect TIMESTAMP.
+        with (
+            patch("pendulum.now", return_value=frozen_moment),
+            patch.object(
+                self.aws, "get_password_authentication_key", return_value=b"\x00" * 16
+            ),
+            patch("pycognito.aws_srp.base64.standard_b64decode", return_value=b""),
+            patch("pycognito.aws_srp.hmac.new") as mock_hmac,
+        ):
+            mock_hmac.return_value.digest.return_value = b"\x00" * 32
+            response = self.aws.process_challenge(
+                challenge_parameters, {"USERNAME": "testuser"}
+            )
+
+        self.assertIn("UTC", response["TIMESTAMP"])
+        self.assertEqual(response["TIMESTAMP"], "Thu Mar 7 15:30:00 UTC 2024")
 
 
 @moto.mock_aws
@@ -413,17 +478,12 @@ class UtilsTestCase(unittest.TestCase):
     password = "Test1234!"
 
     def setUp(self) -> None:
-
         cognitoidp_client = boto3.client("cognito-idp", region_name="us-east-1")
 
         user_pool = cognitoidp_client.create_user_pool(
             PoolName="pycognito-test-pool",
-            AliasAttributes=[
-                "email",
-            ],
-            UsernameAttributes=[
-                "email",
-            ],
+            AliasAttributes=["email"],
+            UsernameAttributes=["email"],
         )
         self.user_pool_id = user_pool["UserPool"]["Id"]
 
@@ -456,30 +516,23 @@ class UtilsTestCase(unittest.TestCase):
 
     @requests_mock.Mocker()
     def test_srp_requests_http_auth(self, m):
-        # Get Moto's static public jwks
+        # Load Moto's static public JWKS
         jwks_public_key_filename = os.path.join(
             os.path.dirname(moto.cognitoidp.__file__), "resources/jwks-public.json.gz"
         )
-
         with gzip.open(jwks_public_key_filename, "rb") as f:
-            json_bytes = f.read()
-        jwks_public_keys = json.loads(json_bytes.decode("utf-8"))
+            jwks_public_keys = json.loads(f.read().decode("utf-8"))
 
-        # Create some test data
         test_data = str(uuid.uuid4())
-
-        # Mock a test endpoint. We pretend this endpoint would require an Authorization header
         m.get("http://test.com", text=test_data)
-        # Pycognito will automatically verify the token it receives. Mock the proper endpoint and return the static
-        # key from above
         m.get(
             f"https://cognito-idp.us-east-1.amazonaws.com/{self.user_pool_id}/.well-known/jwks.json",
             json=jwks_public_keys,
         )
 
-        now = datetime.datetime.utcnow()
+        # Capture the real current time; we will patch pendulum.now to this + 2h below
+        now = pendulum.now("UTC")
 
-        # Standup the actual Requests plugin
         srp_auth = RequestsSrpAuth(
             username=self.username,
             password=self.password,
@@ -488,22 +541,19 @@ class UtilsTestCase(unittest.TestCase):
             client_id=self.client_id,
         )
 
-        # Make the actual request
         req = requests.get("http://test.com", auth=srp_auth)
         req.raise_for_status()
-        # Ensure the data returns matches the mocked endpoint
         self.assertEqual(test_data, req.text)
 
-        # Get the access token used
         access_token_orig = srp_auth.cognito_client.access_token
 
-        # Make a second request with a time 2 hours in the future
-        with freezegun.freeze_time(now + datetime.timedelta(hours=2)):
+        # Advance time 2 hours by patching pendulum.now directly.
+        with patch("pendulum.now", return_value=now.add(hours=2)):
             req = requests.get("http://test.com", auth=srp_auth)
             req.raise_for_status()
 
         access_token_new = srp_auth.cognito_client.access_token
-        # Check that the access token was refreshed to a new one
+        # Token must have been refreshed
         self.assertNotEqual(access_token_orig, access_token_new)
 
 
@@ -512,17 +562,12 @@ class CognitoUserPoolClientTestCase(unittest.TestCase):
     client_name = "test-client"
 
     def setUp(self) -> None:
-
         self.cognito_idp = boto3.client("cognito-idp", region_name="us-east-1")
 
         user_pool = self.cognito_idp.create_user_pool(
             PoolName="pycognito-test-pool",
-            AliasAttributes=[
-                "email",
-            ],
-            UsernameAttributes=[
-                "email",
-            ],
+            AliasAttributes=["email"],
+            UsernameAttributes=["email"],
         )
         self.user_pool_id = user_pool["UserPool"]["Id"]
 
@@ -542,15 +587,12 @@ class CognitoUserPoolClientTestCase(unittest.TestCase):
         response = cognito.create_user_pool_client(
             client_name=self.client_name, **self.params
         )
-
         self.assertEqual(response["ClientName"], self.client_name)
         self.assertEqual(response["AccessTokenValidity"], 1)
 
     def test_describe_user_pool_client(self):
         params = self.params.copy()
-        params.update({"UserPoolId": self.user_pool_id})
-        params.update({"ClientName": self.client_name})
-
+        params.update({"UserPoolId": self.user_pool_id, "ClientName": self.client_name})
         response = self.cognito_idp.create_user_pool_client(**params)
 
         client_id = response["UserPoolClient"]["ClientId"]
@@ -558,7 +600,6 @@ class CognitoUserPoolClientTestCase(unittest.TestCase):
         response = cognito.describe_user_pool_client(
             pool_id=self.user_pool_id, client_id=client_id
         )
-
         self.assertEqual(response["UserPoolId"], self.user_pool_id)
         self.assertEqual(response["ClientId"], client_id)
         self.assertEqual(response["ClientName"], self.client_name)
@@ -569,21 +610,15 @@ class PaginationTestCase(unittest.TestCase):
     invalid_user_pool_id = "us-east-1_123456789"
 
     def setUp(self) -> None:
-
         cognito_idp_client = boto3.client("cognito-idp", region_name="us-east-1")
 
         user_pool = cognito_idp_client.create_user_pool(
             PoolName="pycognito-test-pool",
-            AliasAttributes=[
-                "email",
-            ],
-            UsernameAttributes=[
-                "email",
-            ],
+            AliasAttributes=["email"],
+            UsernameAttributes=["email"],
         )
         self.user_pool_id = user_pool["UserPool"]["Id"]
 
-        # create users, groups, and clients to test pagination
         for i in range(2):
             cognito_idp_client.admin_create_user(
                 UserPoolId=self.user_pool_id,
@@ -591,11 +626,9 @@ class PaginationTestCase(unittest.TestCase):
                 TemporaryPassword="Testing123!",
                 MessageAction="SUPPRESS",
             )
-
             cognito_idp_client.create_group(
                 GroupName=f"group-{i}", UserPoolId=self.user_pool_id
             )
-
             cognito_idp_client.create_user_pool_client(
                 UserPoolId=self.user_pool_id,
                 ClientName=f"test-client-{i}",
@@ -612,27 +645,21 @@ class PaginationTestCase(unittest.TestCase):
     def test_user_pagination(self):
         cognito = Cognito(user_pool_id=self.user_pool_id)
 
-        # retrieve the first user
         user_one = cognito.get_users(pool_id=self.user_pool_id, page_limit=1)
         self.assertEqual(len(user_one), 1)
 
-        # verify a page token exists for the next request
         page_token = cognito.get_users_pagination_token()
         self.assertTrue(page_token is not None)
 
-        # retrieve the second user
         user_two = cognito.get_users(page_limit=1, page_token=page_token)
         self.assertEqual(len(user_two), 1)
 
-        # verify page token doesn't exist since users are exhausted
         page_token = cognito.get_users_pagination_token()
         self.assertTrue(page_token is None)
 
-        # verify we can retrieve all users via pagination if no limits specified
         all_users = cognito.get_users()
         self.assertEqual(len(all_users), 2)
 
-        # test that a different user pool id can be specified for the request
         cognito.user_pool_id = self.invalid_user_pool_id
         users = cognito.get_users(pool_id=self.user_pool_id)
         self.assertEqual(len(users), 2)
@@ -640,27 +667,21 @@ class PaginationTestCase(unittest.TestCase):
     def test_group_pagination(self):
         cognito = Cognito(user_pool_id=self.user_pool_id)
 
-        # retrieve the first group
         group_one = cognito.get_groups(pool_id=self.user_pool_id, page_limit=1)
         self.assertEqual(len(group_one), 1)
 
-        # verify a page token exists for the next request
         page_token = cognito.get_groups_pagination_token()
         self.assertTrue(page_token is not None)
 
-        # retrieve the second group
         group_two = cognito.get_groups(page_limit=1, page_token=page_token)
         self.assertEqual(len(group_two), 1)
 
-        # verify page token doesn't exist since groups are exhausted
         page_token = cognito.get_groups_pagination_token()
         self.assertTrue(page_token is None)
 
-        # verify we can retrieve all groups via pagination if no limits specified
         all_groups = cognito.get_groups()
         self.assertEqual(len(all_groups), 2)
 
-        # test that a different user pool id can be specified for the request
         cognito.user_pool_id = self.invalid_user_pool_id
         groups = cognito.get_groups(pool_id=self.user_pool_id)
         self.assertEqual(len(groups), 2)
@@ -668,29 +689,23 @@ class PaginationTestCase(unittest.TestCase):
     def test_client_pagination(self):
         cognito = Cognito(user_pool_id=self.user_pool_id)
 
-        # retrieve the first client
         client_one = cognito.list_user_pool_clients(
             pool_id=self.user_pool_id, page_limit=1
         )
         self.assertEqual(len(client_one), 1)
 
-        # verify a page token exists for the next request
         page_token = cognito.get_clients_pagination_token()
         self.assertTrue(page_token is not None)
 
-        # retrieve the second client
         client_two = cognito.list_user_pool_clients(page_limit=1, page_token=page_token)
         self.assertEqual(len(client_two), 1)
 
-        # verify page token doesn't exist since clients are exhausted
         page_token = cognito.get_clients_pagination_token()
         self.assertTrue(page_token is None)
 
-        # verify we can retrieve all clients via pagination if no limits specified
         all_clients = cognito.list_user_pool_clients()
         self.assertEqual(len(all_clients), 2)
 
-        # test that a different user pool id can be specified for the request
         cognito.user_pool_id = self.invalid_user_pool_id
         clients = cognito.list_user_pool_clients(pool_id=self.user_pool_id)
         self.assertEqual(len(clients), 2)
@@ -702,17 +717,12 @@ class AdminUpdateProfileTestCase(unittest.TestCase):
     password = "Testing123!"
 
     def setUp(self) -> None:
-
         cognito_idp_client = boto3.client("cognito-idp", region_name="us-east-1")
 
         user_pool = cognito_idp_client.create_user_pool(
             PoolName="pycognito-test-pool",
-            AliasAttributes=[
-                "email",
-            ],
-            UsernameAttributes=[
-                "email",
-            ],
+            AliasAttributes=["email"],
+            UsernameAttributes=["email"],
         )
         self.user_pool_id = user_pool["UserPool"]["Id"]
 
@@ -773,23 +783,19 @@ class AdminUpdateProfileTestCase(unittest.TestCase):
         )
         cognito.authenticate(self.password)
 
-        # verify attr dict from cognito_to_dict and dict_to_cognito works as expected
         cognito.admin_update_profile(attrs={"given_name": "John"})
         assert cognito.get_user().given_name == "John"
 
-        # verify attr_map works as expected
         cognito.admin_update_profile(
             attrs={"gn": "Steve"}, attr_map={"given_name": "gn"}
         )
         assert cognito.get_user().given_name == "Steve"
 
-        # verify that cognito formatted list works as expected
         cognito.admin_update_profile(
             attrs=[{"Name": "given_name", "Value": "Bob"}], username=self.username
         )
         assert cognito.get_user().given_name == "Bob"
 
-        # is_cognito_attr_list returns False so dict_to_cognito is called which will fail on this bad list input
         try:
             cognito.admin_update_profile(
                 attrs=[{"Name": "given_name", "Value": "John", "Bad_Key": "Test"}],

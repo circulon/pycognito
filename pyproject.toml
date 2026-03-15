@@ -4,9 +4,11 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[project]
+requires-python = ">=3.9"
+
 [tool.ruff]
 line-length = 88
-target-version = "py38"
 exclude = ["tests_*"]
 
 [tool.ruff.lint]

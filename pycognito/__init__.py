@@ -1,12 +1,12 @@
 import ast
 import base64
-import datetime
 import re
 from typing import List, Union
 
 import boto3
 from envs import env
 import jwt
+import pendulum
 import requests
 
 from .aws_srp import AWSSRP
@@ -400,12 +400,12 @@ class Cognito:
         """
         if not self.access_token:
             raise AttributeError("Access Token Required to Check Token")
-        now = datetime.datetime.now()
+        now = pendulum.now("UTC")
         dec_access_token = jwt.decode(
             self.access_token, options={"verify_signature": False}
         )
 
-        if now > datetime.datetime.fromtimestamp(dec_access_token["exp"]):
+        if now > pendulum.from_timestamp(dec_access_token["exp"], tz="UTC"):
             expired = True
             if renew:
                 self.renew_access_token()

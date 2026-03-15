@@ -31,9 +31,10 @@ setup(
         "envs>=1.3",
         "pyjwt[crypto]>=2.8.0",
         "requests>=2.22.0",
+        "pendulum>=3.1",
     ],
     include_package_data=True,
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     zip_safe=True,
     extras_require={
         "dev": ["ruff", "pre-commit"],
