@@ -1276,3 +1276,276 @@ class Cognito:
             ChallengeResponses=challenge_responses,
         )
         self._set_tokens(tokens)
+
+    # -------------------------------------------------------------------------
+    # Stubs for missing Cognito functionality
+    # Each method raises NotImplementedError so callers get a clear signal.
+    # -------------------------------------------------------------------------
+
+    # -- Auth flows -----------------------------------------------------------
+
+    def authenticate_custom_auth(self, client_metadata=None):
+        """
+        Initiate a CUSTOM_AUTH flow for use with Cognito Lambda triggers
+        implementing a custom challenge/response cycle.
+        :param client_metadata: Optional metadata dict passed to the Define/Create/Verify
+            Auth Challenge Lambda triggers.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("authenticate_custom_auth is not yet implemented")
+
+    def admin_authenticate_with_mfa(self, password):
+        """
+        Admin-privilege authentication that correctly handles MFA challenges
+        (SMS_MFA and SOFTWARE_TOKEN_MFA) raised by ADMIN_USER_PASSWORD_AUTH,
+        storing mfa_tokens so the caller can proceed with respond_to_*_mfa_challenge.
+        :param password: User's password.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("admin_authenticate_with_mfa is not yet implemented")
+
+    def admin_renew_access_token(self):
+        """
+        Admin-privilege equivalent of renew_access_token — uses
+        admin_initiate_auth with REFRESH_TOKEN_AUTH flow so that
+        server-side auth (no SRP) can refresh tokens without user interaction.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("admin_renew_access_token is not yet implemented")
+
+    # -- Token management -----------------------------------------------------
+
+    def revoke_token(self, token=None):
+        """
+        Revokes a refresh token, invalidating all access tokens issued from it.
+        Calls cognito-idp RevokeToken. Falls back to self.refresh_token if token
+        is not provided.
+        :param token: Refresh token to revoke. Defaults to self.refresh_token.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("revoke_token is not yet implemented")
+
+    def admin_user_global_sign_out(self, username=None):
+        """
+        Admin-privilege global sign-out that invalidates all tokens for the
+        specified user regardless of which client they used.
+        Calls cognito-idp AdminUserGlobalSignOut.
+        :param username: Username to sign out. Defaults to self.username.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("admin_user_global_sign_out is not yet implemented")
+
+    # -- Device management ----------------------------------------------------
+
+    def list_devices(self, limit=60, pagination_token=None):
+        """
+        List devices associated with the currently authenticated user.
+        Calls cognito-idp ListDevices using self.access_token.
+        :param limit: Maximum number of devices to return (1–60).
+        :param pagination_token: Token for retrieving the next page of results.
+        :return: List of device dicts.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("list_devices is not yet implemented")
+
+    def admin_list_devices(self, username=None, limit=60, pagination_token=None):
+        """
+        Admin-privilege list of devices for the specified user.
+        Calls cognito-idp AdminListDevices.
+        :param username: Username whose devices to list. Defaults to self.username.
+        :param limit: Maximum number of devices to return (1–60).
+        :param pagination_token: Token for retrieving the next page of results.
+        :return: List of device dicts.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("admin_list_devices is not yet implemented")
+
+    def get_device(self, device_key):
+        """
+        Describe a specific device for the currently authenticated user.
+        Calls cognito-idp GetDevice using self.access_token.
+        :param device_key: The device key to describe.
+        :return: Device dict.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("get_device is not yet implemented")
+
+    def admin_get_device(self, device_key, username=None):
+        """
+        Admin-privilege describe of a specific device.
+        Calls cognito-idp AdminGetDevice.
+        :param device_key: The device key to describe.
+        :param username: Username who owns the device. Defaults to self.username.
+        :return: Device dict.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("admin_get_device is not yet implemented")
+
+    def admin_forget_device(self, device_key, username=None):
+        """
+        Admin-privilege removal of a remembered device.
+        Calls cognito-idp AdminForgetDevice.
+        :param device_key: The device key to forget.
+        :param username: Username who owns the device. Defaults to self.username.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("admin_forget_device is not yet implemented")
+
+    # -- Group CRUD -----------------------------------------------------------
+
+    def create_group(
+        self, group_name, description=None, role_arn=None, precedence=None
+    ):
+        """
+        Create a new group in the user pool.
+        Calls cognito-idp CreateGroup.
+        :param group_name: The name of the group.
+        :param description: Optional description of the group.
+        :param role_arn: Optional IAM role ARN associated with the group.
+        :param precedence: Optional integer precedence for the group.
+        :return: GroupObj instance for the created group.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("create_group is not yet implemented")
+
+    def update_group(
+        self, group_name, description=None, role_arn=None, precedence=None
+    ):
+        """
+        Update an existing group's properties.
+        Calls cognito-idp UpdateGroup.
+        :param group_name: The name of the group to update.
+        :param description: New description for the group.
+        :param role_arn: New IAM role ARN for the group.
+        :param precedence: New precedence integer for the group.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("update_group is not yet implemented")
+
+    def delete_group(self, group_name):
+        """
+        Delete a group from the user pool.
+        Calls cognito-idp DeleteGroup.
+        :param group_name: The name of the group to delete.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("delete_group is not yet implemented")
+
+    def list_users_in_group(
+        self,
+        group_name,
+        attr_map=None,
+        page_limit=None,
+        page_token=None,
+    ):
+        """
+        Return all users that belong to the specified group.
+        Calls cognito-idp ListUsersInGroup, handling pagination automatically
+        unless page_limit is set.
+        :param group_name: The group name to query.
+        :param attr_map: Optional attribute map applied to each UserObj.
+        :param page_limit: Maximum results to return from a single request.
+        :param page_token: Pagination token for the next page of results.
+        :return: List of UserObj instances.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("list_users_in_group is not yet implemented")
+
+    # -- Federated identity ---------------------------------------------------
+
+    def admin_link_provider_for_user(
+        self,
+        destination_username,
+        provider_name,
+        provider_attribute_name,
+        provider_attribute_value,
+    ):
+        """
+        Link a federated identity provider account to an existing Cognito user.
+        Calls cognito-idp AdminLinkProviderForUser.
+        :param destination_username: The Cognito username to link to.
+        :param provider_name: The identity provider name (e.g. "Google", "Facebook").
+        :param provider_attribute_name: The provider attribute used to identify the user
+            (e.g. "Cognito_Subject").
+        :param provider_attribute_value: The provider attribute value (e.g. the subject ID).
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("admin_link_provider_for_user is not yet implemented")
+
+    def admin_disable_provider_for_user(self, provider_name, provider_attribute_value):
+        """
+        Unlink (disable) a federated provider from a Cognito user.
+        Calls cognito-idp AdminDisableProviderForUser.
+        :param provider_name: The identity provider name.
+        :param provider_attribute_value: The provider user identifier to unlink.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError(
+            "admin_disable_provider_for_user is not yet implemented"
+        )
+
+    # -- User pool management -------------------------------------------------
+
+    def describe_user_pool(self, pool_id=None):
+        """
+        Return configuration details of the user pool.
+        Calls cognito-idp DescribeUserPool.
+        :param pool_id: The user pool ID. Defaults to self.user_pool_id.
+        :return: User pool configuration dict.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("describe_user_pool is not yet implemented")
+
+    def update_user_pool(self, pool_id=None, **kwargs):
+        """
+        Update configuration properties of the user pool.
+        Calls cognito-idp UpdateUserPool.
+        :param pool_id: The user pool ID. Defaults to self.user_pool_id.
+        :param kwargs: UpdateUserPool request parameters (e.g. Policies, LambdaConfig,
+            AutoVerifiedAttributes, SmsConfiguration, EmailConfiguration).
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("update_user_pool is not yet implemented")
+
+    # -- MFA configuration ----------------------------------------------------
+
+    def admin_set_user_mfa_preference(
+        self, username, sms_mfa, software_token_mfa, preferred=None
+    ):
+        """
+        Admin-privilege version of set_user_mfa_preference — changes MFA
+        settings for another user without requiring their access token.
+        Calls cognito-idp AdminSetUserMFAPreference.
+        :param username: The user whose MFA preference to update.
+        :param sms_mfa: Enable SMS MFA for the user.
+        :type sms_mfa: bool
+        :param software_token_mfa: Enable Software Token MFA for the user.
+        :type software_token_mfa: bool
+        :param preferred: "SMS", "SOFTWARE_TOKEN", or None if both are False.
+        :type preferred: str or None
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError(
+            "admin_set_user_mfa_preference is not yet implemented"
+        )
+
+    def get_user_pool_mfa_config(self, pool_id=None):
+        """
+        Return the pool-level MFA policy (which MFA types are enabled/required).
+        Calls cognito-idp GetUserPoolMfaConfig.
+        :param pool_id: The user pool ID. Defaults to self.user_pool_id.
+        :return: MFA configuration dict.
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("get_user_pool_mfa_config is not yet implemented")
+
+    def set_user_pool_mfa_config(self, pool_id=None, **kwargs):
+        """
+        Set the pool-level MFA policy.
+        Calls cognito-idp SetUserPoolMfaConfig.
+        :param pool_id: The user pool ID. Defaults to self.user_pool_id.
+        :param kwargs: SetUserPoolMfaConfig parameters (e.g. SmsMfaConfiguration,
+            SoftwareTokenMfaConfiguration, MfaConfiguration).
+        :raises NotImplementedError: Not yet implemented.
+        """
+        raise NotImplementedError("set_user_pool_mfa_config is not yet implemented")
