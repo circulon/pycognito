@@ -1,30 +1,44 @@
-class WarrantException(Exception):
-    """Base class for all pyCognito exceptions"""
+"""
+Custom exceptions raised by pycognito.
+
+TokenVerificationException  — JWT could not be verified
+ForceChangePasswordException — Cognito requires a password change before auth
+MFAChallengeException        — base for MFA challenges (carries session tokens)
+SMSMFAChallengeException     — SMS_MFA challenge subclass
+SoftwareTokenMFAChallengeException — SOFTWARE_TOKEN_MFA challenge subclass
+"""
 
 
-class ForceChangePasswordException(WarrantException):
-    """Raised when the user is forced to change their password"""
+class TokenVerificationException(Exception):
+    """Raised when a Cognito JWT fails verification."""
 
 
-class TokenVerificationException(WarrantException):
-    """Raised when token verification fails."""
+class ForceChangePasswordException(Exception):
+    """
+    Raised during authentication when Cognito requires the user to change
+    their password before a session can be established.
+    """
 
 
-class MFAChallengeException(WarrantException):
-    """Raised when MFA is required."""
+class MFAChallengeException(Exception):
+    """
+    Base exception for MFA challenges returned during authentication.
+    Carries the challenge tokens so they can be retrieved by the caller
+    and passed to the appropriate respond_to_*_mfa_challenge method.
+    """
 
-    def __init__(self, message, tokens, *args, **kwargs):
-        super().__init__(message, tokens, *args, **kwargs)
-        self.message = message
+    def __init__(self, message, tokens):
+        super().__init__(message)
         self._tokens = tokens
 
     def get_tokens(self):
+        """Return the raw challenge tokens dict from Cognito."""
         return self._tokens
 
 
-class SoftwareTokenMFAChallengeException(MFAChallengeException):
-    """Raised when Software Token MFA is required."""
-
-
 class SMSMFAChallengeException(MFAChallengeException):
-    """Raised when SMS MFA is required."""
+    """Raised when Cognito returns an SMS_MFA challenge."""
+
+
+class SoftwareTokenMFAChallengeException(MFAChallengeException):
+    """Raised when Cognito returns a SOFTWARE_TOKEN_MFA challenge."""

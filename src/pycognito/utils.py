@@ -1,93 +1,133 @@
-from enum import Enum
+"""
+Stateless helper functions for converting between Python dicts and the
+Cognito attribute-list format, plus case-conversion utilities.
+
+Also contains RequestsSrpAuth — the requests auth plugin backed by SRP.
+"""
+
+import ast
+import re
+from typing import Optional
 
 import requests
-import requests.auth
+from requests.auth import AuthBase
 
-from . import Cognito
-
-
-class TokenType(str, Enum):
-    ID_TOKEN = "id_token"
-    ACCESS_TOKEN = "access_token"
+# ---------------------------------------------------------------------------
+# Attribute conversion
+# ---------------------------------------------------------------------------
 
 
-class RequestsSrpAuth(requests.auth.AuthBase):
+def cognito_to_dict(attr_list, attr_map=None):
+    """Convert a Cognito attribute list to a plain dict."""
+    if attr_map is None:
+        attr_map = {}
+    attr_dict = {}
+    for attr in attr_list:
+        name = attr.get("Name")
+        value = attr.get("Value")
+        if value in ["true", "false"]:
+            value = ast.literal_eval(value.capitalize())
+        name = attr_map.get(name, name)
+        attr_dict[name] = value
+    return attr_dict
+
+
+def is_cognito_attr_list(attr_list):
     """
-    A Requests Auth Plugin to automatically populate Authorization header
-    with a Cognito token.
+    :param attr_list: List of User Pool attribute dicts
+    :return: bool indicating whether the list contains valid User Pool attribute dicts
+    """
+    if not isinstance(attr_list, list):
+        return False
+    for attr_dict in attr_list:
+        if not isinstance(attr_dict, dict):
+            return False
+        if not attr_dict.keys() <= {"Name", "Value"}:
+            return False
+    return True
 
-    Example:
 
-    ```
-    import requests
-    from pycognito.utils import RequestsSrpAuth
+def dict_to_cognito(attributes, attr_map=None):
+    """
+    :param attributes: Dictionary of User Pool attribute names/values
+    :param attr_map: Optional mapping from local names to Cognito attribute names
+    :return: list of User Pool attribute formatted dicts: {'Name': <attr_name>, 'Value': <attr_value>}
+    """
+    if attr_map is None:
+        attr_map = {}
+    for key, value in attr_map.items():
+        if value in attributes.keys():
+            attributes[key] = attributes.pop(value)
 
-    auth = RequestsSrpAuth(
-        username='myusername',
-        password='secret',
-        user_pool_id='eu-west-1_1234567',
-        client_id='4dn6jbcbhqcofxyczo3ms9z4cc',
-        user_pool_region='eu-west-1',
-    )
+    def normalize(val):
+        if isinstance(val, bool):
+            return "true" if val else "false"
+        return val
 
-    response = requests.get('http://test.com', auth=auth)
-    ```
+    return [
+        {"Name": key, "Value": normalize(value)} for key, value in attributes.items()
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Case conversion
+# ---------------------------------------------------------------------------
+
+
+def camel_to_snake(camel_str):
+    """
+    :param camel_str: string
+    :return: string converted from CamelCase to snake_case
+    """
+    return re.sub(
+        "([a-z0-9])([A-Z])", r"\1_\2", re.sub("(.)([A-Z][a-z]+)", r"\1_\2", camel_str)
+    ).lower()
+
+
+def snake_to_camel(snake_str):
+    """
+    :param snake_str: string
+    :return: string converted from snake_case to camelCase
+    """
+    components = snake_str.split("_")
+    return components[0] + "".join(x.title() for x in components[1:])
+
+
+# ---------------------------------------------------------------------------
+# Requests auth plugin
+# ---------------------------------------------------------------------------
+
+
+class RequestsSrpAuth(AuthBase):
+    """
+    Requests authentication plugin that transparently authenticates via
+    Cognito SRP and refreshes the access token when it expires.
     """
 
     def __init__(
         self,
-        username: str = None,
-        password: str = None,
-        user_pool_id: str = None,
-        user_pool_region: str = None,
-        client_id: str = None,
-        cognito: Cognito = None,
-        http_header: str = "Authorization",
-        http_header_prefix: str = "Bearer ",
-        auth_token_type: TokenType = TokenType.ACCESS_TOKEN,
-        boto3_client_kwargs=None,
+        username: str,
+        password: str,
+        user_pool_id: str,
+        client_id: str,
+        user_pool_region: Optional[str] = None,
+        client_secret: Optional[str] = None,
     ):
-        """
+        # Import here to avoid a circular import — Cognito lives in __init__
+        from . import Cognito  # noqa
 
-        :param username: Cognito User. Required if `cognito` not set
-        :param password: Password of Cognito User. Required if `cognito` not set
-        :param user_pool_id: Cognito User Pool. Required if `cognito` not set
-        :param user_pool_region: Region of the Cognito User Pool. Required if `cognito` not set
-        :param client_id: Cognito Client ID / Application. Required if :py:attr:`cognito` not set
-        :param cognito: Provide a preconfigured `pycognito.Cognito` instead of `username`, `password` etc
-        :param http_header: The HTTP Header to populate. Defaults to "Authorization" (Basic Authentication)
-        :param http_header_prefix: Prefix a value before the token. Defaults to "Bearer ". (Note the space)
-        :param auth_token_type: Whether to populate the header with ID or ACCESS_TOKEN. Defaults to "ACCESS_TOKEN"
-        :param boto3_client_kwargs: Keyword args to pass to Boto3 for client creation
-        """
+        self.cognito_client = Cognito(
+            user_pool_id=user_pool_id,
+            client_id=client_id,
+            user_pool_region=user_pool_region,
+            username=username,
+            client_secret=client_secret,
+        )
+        self.cognito_client.authenticate(password=password)
 
-        if cognito:
-            self.cognito_client = cognito
-        else:
-            self.cognito_client = Cognito(
-                user_pool_id=user_pool_id,
-                client_id=client_id,
-                user_pool_region=user_pool_region,
-                username=username,
-                boto3_client_kwargs=boto3_client_kwargs,
-            )
-
-        self.username = username
-        self.__password = password
-        self.http_header = http_header
-        self.http_header_prefix = http_header_prefix
-        self.token_type = auth_token_type
-
-    def __call__(self, request: requests.Request):
-        # If this is the first time in, we'll need to auth
-        if not self.cognito_client.access_token:
-            self.cognito_client.authenticate(password=self.__password)
-
-        # Checks if token is expired and fetches a new token if available
-        self.cognito_client.check_token(renew=True)
-
-        token = getattr(self.cognito_client, self.token_type.value)
-
-        request.headers[self.http_header] = self.http_header_prefix + token
-
-        return request
+    def __call__(self, r: requests.PreparedRequest) -> requests.PreparedRequest:
+        if self.cognito_client.check_token():
+            # check_token already called renew_access_token internally
+            pass
+        r.headers["Authorization"] = self.cognito_client.access_token
+        return r

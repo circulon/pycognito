@@ -1,6 +1,6 @@
 import base64
 import json
-from os import environ
+import os
 import unittest
 from unittest.mock import patch
 
@@ -16,17 +16,17 @@ from .helpers import mock_authenticate_user, mock_get_params, mock_verify_tokens
 
 class CognitoAuthTestCase(unittest.TestCase):
     def setUp(self):
-        if environ.get("USE_CLIENT_SECRET") == "True":
-            self.app_id = environ.get("COGNITO_APP_WITH_SECRET_ID", "app")
-            self.client_secret = environ.get("COGNITO_CLIENT_SECRET")
+        if os.environ.get("USE_CLIENT_SECRET") == "True":
+            self.app_id = os.environ.get("COGNITO_APP_WITH_SECRET_ID", "app")
+            self.client_secret = os.environ.get("COGNITO_CLIENT_SECRET")
         else:
-            self.app_id = environ.get("COGNITO_APP_ID", "app")
+            self.app_id = os.environ.get("COGNITO_APP_ID", "app")
             self.client_secret = None
-        self.cognito_user_pool_id = environ.get(
+        self.cognito_user_pool_id = os.environ.get(
             "COGNITO_USER_POOL_ID", "us-east-1_123456789"
         )
-        self.username = environ.get("COGNITO_TEST_USERNAME", "bob")
-        self.password = environ.get("COGNITO_TEST_PASSWORD", "bobpassword")
+        self.username = os.environ.get("COGNITO_TEST_USERNAME", "bob")
+        self.password = os.environ.get("COGNITO_TEST_PASSWORD", "bobpassword")
         self.user = Cognito(
             self.cognito_user_pool_id,
             self.app_id,
@@ -247,17 +247,17 @@ class CognitoAuthTestCase(unittest.TestCase):
 
 class AWSSRPTestCase(unittest.TestCase):
     def setUp(self):
-        if environ.get("USE_CLIENT_SECRET") == "True":
-            self.client_secret = environ.get("COGNITO_CLIENT_SECRET")
-            self.app_id = environ.get("COGNITO_APP_WITH_SECRET_ID", "app")
+        if os.environ.get("USE_CLIENT_SECRET") == "True":
+            self.client_secret = os.environ.get("COGNITO_CLIENT_SECRET")
+            self.app_id = os.environ.get("COGNITO_APP_WITH_SECRET_ID", "app")
         else:
-            self.app_id = environ.get("COGNITO_APP_ID", "app")
+            self.app_id = os.environ.get("COGNITO_APP_ID", "app")
             self.client_secret = None
-        self.cognito_user_pool_id = environ.get(
+        self.cognito_user_pool_id = os.environ.get(
             "COGNITO_USER_POOL_ID", "us-east-1_123456789"
         )
-        self.username = environ.get("COGNITO_TEST_USERNAME")
-        self.password = environ.get("COGNITO_TEST_PASSWORD")
+        self.username = os.environ.get("COGNITO_TEST_USERNAME")
+        self.password = os.environ.get("COGNITO_TEST_PASSWORD")
         self.aws = AWSSRP(
             username=self.username,
             password=self.password,
