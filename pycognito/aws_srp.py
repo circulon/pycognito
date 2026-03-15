@@ -531,6 +531,8 @@ class AWSSRP:
             status = "remembered"
         elif is_remembered is False:
             status = "not_remembered"
+        else:
+            raise ValueError("is_remembered must be True or False")
         data = {
             "AccessToken": self.access_token,
             "DeviceKey": self.device_key,
@@ -539,7 +541,7 @@ class AWSSRP:
         response = requests.post(
             self.cognito_idp_url, headers=headers, data=json.dumps(data), timeout=30
         )
-        return f"{response} : {response.json}"
+        return f"{response} : {response.json()}"
 
     def forget_device(self, access_token, device_key):
         self.cognito_idp_url = (
@@ -556,4 +558,4 @@ class AWSSRP:
         response = requests.post(
             self.cognito_idp_url, headers=headers, data=json.dumps(data), timeout=30
         )
-        return f"{response} : {response.json}"
+        return f"{response} : {response.json()}"
