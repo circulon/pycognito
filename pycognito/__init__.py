@@ -530,8 +530,8 @@ class Cognito:
         tokens = self.client.admin_initiate_auth(
             UserPoolId=self.user_pool_id,
             ClientId=self.client_id,
-            # AuthFlow='USER_SRP_AUTH'|'REFRESH_TOKEN_AUTH'|'REFRESH_TOKEN'|'CUSTOM_AUTH'|'ADMIN_NO_SRP_AUTH',
-            AuthFlow="ADMIN_NO_SRP_AUTH",
+            # AuthFlow='ALLOW_ADMIN_USER_PASSWORD_AUTH'|'ALLOW_CUSTOM_AUTH'|'ALLOW_USER_PASSWORD_AUTH'|'ALLOW_USER_SRP_AUTH'|'ALLOW_REFRESH_TOKEN_AUTH'|'ALLOW_USER_AUTH',
+            AuthFlow="ALLOW_ADMIN_USER_PASSWORD_AUTH",
             AuthParameters=auth_params,
         )
         self._set_tokens(tokens)
@@ -948,7 +948,7 @@ class Cognito:
                     UserPoolId=pool_id, NextToken=page_token
                 )
                 group_list.extend(response.get("Groups"))
-                page_token = response.get("PaginationToken")
+                page_token = response.get("NextToken")
         else:
             self._groups_pagination_next_token = page_token
 
@@ -1106,7 +1106,7 @@ class Cognito:
         if page_limit is None:
             while page_token:
                 response = self.client.list_user_pool_clients(
-                    UserPoolId=pool_id, PaginationToken=page_token
+                    UserPoolId=pool_id, NextToken=page_token
                 )
                 client_list.extend(response.get("UserPoolClients"))
                 page_token = response.get("NextToken")

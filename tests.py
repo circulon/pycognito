@@ -294,7 +294,7 @@ class CognitoAuthTestCase(unittest.TestCase):
             expected_params={
                 "UserPoolId": self.cognito_user_pool_id,
                 "ClientId": self.app_id,
-                "AuthFlow": "ADMIN_NO_SRP_AUTH",
+                "AuthFlow": "ALLOW_ADMIN_USER_PASSWORD_AUTH",
                 "AuthParameters": {
                     "USERNAME": self.username,
                     "PASSWORD": self.password,
