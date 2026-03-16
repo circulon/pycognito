@@ -17,8 +17,6 @@ def _make_pool_and_user(idp, username, password):
     """Helper: create pool, confirmed user, and app client. Returns (pool_id, client_id)."""
     pool = idp.create_user_pool(
         PoolName="pycognito-mfa-test",
-        AliasAttributes=["email"],
-        UsernameAttributes=["email"],
     )
     pool_id = pool["UserPool"]["Id"]
     app = idp.create_user_pool_client(
@@ -156,8 +154,6 @@ class UserPoolMFAConfigTestCase(unittest.TestCase):
         idp = boto3.client("cognito-idp", region_name="us-east-1")
         pool = idp.create_user_pool(
             PoolName="pycognito-mfa-config-test",
-            AliasAttributes=["email"],
-            UsernameAttributes=["email"],
         )
         self.user_pool_id = pool["UserPool"]["Id"]
         self.cognito = Cognito(user_pool_id=self.user_pool_id)

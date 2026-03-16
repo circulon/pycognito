@@ -10,8 +10,8 @@ TOKEN_VALIDITY_PARAMS = {
     "AccessTokenValidity": 1,
     "IdTokenValidity": 1,
     "TokenValidityUnits": {
-        "AccessToken": "hour",
-        "IdToken": "hour",
+        "AccessToken": "hours",
+        "IdToken": "hours",
         "RefreshToken": "days",
     },
 }

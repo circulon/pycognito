@@ -12,8 +12,6 @@ from .helpers import TOKEN_VALIDITY_PARAMS
 def _create_pool(cognito_idp_client, pool_name="pycognito-test-pool"):
     user_pool = cognito_idp_client.create_user_pool(
         PoolName=pool_name,
-        AliasAttributes=["email"],
-        UsernameAttributes=["email"],
     )
     return user_pool["UserPool"]["Id"]
 
@@ -392,8 +390,6 @@ class UserPoolConfigTestCase(unittest.TestCase):
         idp = boto3.client("cognito-idp", region_name="us-east-1")
         pool = idp.create_user_pool(
             PoolName="config-test-pool",
-            AliasAttributes=["email"],
-            UsernameAttributes=["email"],
         )
         self.user_pool_id = pool["UserPool"]["Id"]
         self.cognito = Cognito(user_pool_id=self.user_pool_id)

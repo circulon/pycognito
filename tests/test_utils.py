@@ -25,8 +25,6 @@ class UtilsTestCase(unittest.TestCase):
 
         user_pool = cognitoidp_client.create_user_pool(
             PoolName="pycognito-test-pool",
-            AliasAttributes=["email"],
-            UsernameAttributes=["email"],
         )
         self.user_pool_id = user_pool["UserPool"]["Id"]
 
@@ -37,8 +35,8 @@ class UtilsTestCase(unittest.TestCase):
             AccessTokenValidity=1,
             IdTokenValidity=1,
             TokenValidityUnits={
-                "AccessToken": "hour",
-                "IdToken": "hour",
+                "AccessToken": "hours",
+                "IdToken": "hours",
                 "RefreshToken": "days",
             },
         )

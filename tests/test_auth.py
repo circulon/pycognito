@@ -492,8 +492,6 @@ class AdminRenewAccessTokenTestCase(unittest.TestCase):
         idp = boto3.client("cognito-idp", region_name="us-east-1")
         pool = idp.create_user_pool(
             PoolName="pycognito-test-pool",
-            AliasAttributes=["email"],
-            UsernameAttributes=["email"],
         )
         self.user_pool_id = pool["UserPool"]["Id"]
         client_app = idp.create_user_pool_client(
@@ -581,8 +579,6 @@ class AdminUserGlobalSignOutTestCase(unittest.TestCase):
         idp = boto3.client("cognito-idp", region_name="us-east-1")
         pool = idp.create_user_pool(
             PoolName="pycognito-test-pool",
-            AliasAttributes=["email"],
-            UsernameAttributes=["email"],
         )
         self.user_pool_id = pool["UserPool"]["Id"]
         client_app = idp.create_user_pool_client(
