@@ -7,6 +7,7 @@ the token-related cases in test_auth.py.
 """
 
 import base64
+import json
 from os import environ
 
 import jwt
@@ -37,7 +38,11 @@ class TokensMixin:
         return self.pool_jwk
 
     def get_key(self, kid):
-        keys = self.get_keys().get("keys")
+        keys = self.get_keys()
+        if isinstance(keys, str):
+            keys = json.loads(keys)
+
+        keys = keys.get("keys")
         key = list(filter(lambda x: x.get("kid") == kid, keys))
         if not key:
             raise jwt.PyJWTError("Token Expired")
