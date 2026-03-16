@@ -30,7 +30,7 @@ class TokensMixin:
 
         pool_jwk_env = environ.get("COGNITO_JWKS") or {}
         if pool_jwk_env:
-            self.pool_jwk = pool_jwk_env
+            self.pool_jwk = json.loads(pool_jwk_env)
         else:
             self.pool_jwk = requests.get(
                 f"{self.user_pool_url}/.well-known/jwks.json", timeout=15
@@ -38,11 +38,7 @@ class TokensMixin:
         return self.pool_jwk
 
     def get_key(self, kid):
-        keys = self.get_keys()
-        if isinstance(keys, str):
-            keys = json.loads(keys)
-
-        keys = keys.get("keys")
+        keys = self.get_keys().get("keys")
         key = list(filter(lambda x: x.get("kid") == kid, keys))
         if not key:
             raise jwt.PyJWTError("Token Expired")
