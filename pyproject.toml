@@ -67,7 +67,7 @@ test = [
 write_to = "src/pycognito/_version.py"
 
 [tool.setuptools.packages.find]
-where = ["src/pycognito"]
+where = ["src"]
 
 [tool.ruff]
 line-length = 88
