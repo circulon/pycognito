@@ -145,6 +145,10 @@ class AuthMixin:
             client_id=self.client_id,
             client=self.client,
             client_secret=self.client_secret,
+            device_key=self.device_key,
+            device_group_key=self.device_group_key,
+            device_password=self.device_password,
+            device_name=self.device_name,
         )
         try:
             tokens = aws.authenticate_user(client_metadata=client_metadata)
@@ -153,6 +157,17 @@ class AuthMixin:
             raise mfa_challenge
 
         self._set_tokens(tokens)
+
+        # Only confirm the device when NewDeviceMetadata is present in the response.
+        # If device_key was already provided by the caller (a previously confirmed device)
+        # and the response does not include NewDeviceMetadata, no confirmation is needed.
+        if (
+            self.device_key is not None
+            and "NewDeviceMetadata" in tokens["AuthenticationResult"]
+        ):
+            _, self.device_password = aws.confirm_device(
+                tokens=tokens, device_name=self.device_name
+            )
 
     def new_password_challenge(self, password, new_password):
         """
@@ -167,6 +182,7 @@ class AuthMixin:
             client_id=self.client_id,
             client=self.client,
             client_secret=self.client_secret,
+            device_key=self.device_key,
         )
         tokens = aws.set_new_password_challenge(new_password)
         self._set_tokens(tokens)
@@ -192,6 +208,10 @@ class AuthMixin:
         """
         auth_params = {"REFRESH_TOKEN": self.refresh_token}
         self._add_secret_hash(auth_params, "SECRET_HASH")
+
+        if self.device_key is not None:
+            auth_params["DEVICE_KEY"] = self.device_key
+
         refresh_response = self.client.initiate_auth(
             ClientId=self.client_id,
             AuthFlow="REFRESH_TOKEN_AUTH",
@@ -316,12 +336,20 @@ class AuthMixin:
 
     def admin_renew_access_token(self):
         """
-        Admin-privilege equivalent of renew_access_token — uses
-        admin_initiate_auth with REFRESH_TOKEN_AUTH so that server-side
-        auth can refresh tokens without user interaction.
-        :raises NotImplementedError:
+        Admin-privilege equivalent of renew_access_token.
+        Uses admin_initiate_auth with REFRESH_TOKEN_AUTH flow so that
+        server-side auth can refresh tokens without user interaction.
+        Requires the instance to already hold a valid refresh_token.
         """
-        raise NotImplementedError("admin_renew_access_token is not yet implemented")
+        auth_params = {"REFRESH_TOKEN": self.refresh_token}
+        self._add_secret_hash(auth_params, "SECRET_HASH")
+        refresh_response = self.client.admin_initiate_auth(
+            UserPoolId=self.user_pool_id,
+            ClientId=self.client_id,
+            AuthFlow="REFRESH_TOKEN_AUTH",
+            AuthParameters=auth_params,
+        )
+        self._set_tokens(refresh_response)
 
     # ------------------------------------------------------------------
     # Internal helpers

@@ -64,6 +64,10 @@ class Cognito(TokensMixin, AuthMixin, UserPoolMixin, MFAMixin):
         session=None,
         botocore_config=None,
         boto3_client_kwargs=None,
+        device_key=None,
+        device_group_key=None,
+        device_password=None,
+        device_name=None,
     ):
         """
         :param user_pool_id: Cognito User Pool ID
@@ -79,6 +83,10 @@ class Cognito(TokensMixin, AuthMixin, UserPoolMixin, MFAMixin):
         :param session: Existing boto3 Session to use
         :param botocore_config: Botocore Config object for the boto3 client
         :param boto3_client_kwargs: Extra keyword args forwarded to boto3.client()
+        :param device_key: Device Key for the user
+        :param device_group_key: Device Group Key for the user
+        :param device_password: Device Password for the user
+        :param device_name: Device Name for the user
         """
         self.user_pool_id = user_pool_id
         self.client_id = client_id
@@ -97,6 +105,10 @@ class Cognito(TokensMixin, AuthMixin, UserPoolMixin, MFAMixin):
         self.base_attributes = None
         self.pool_jwk = None
         self.mfa_tokens = None
+        self.device_key = device_key
+        self.device_group_key = device_group_key
+        self.device_password = device_password
+        self.device_name = device_name
 
         if not boto3_client_kwargs:
             boto3_client_kwargs = {}
@@ -118,6 +130,7 @@ class Cognito(TokensMixin, AuthMixin, UserPoolMixin, MFAMixin):
         self._users_pagination_next_token = None
         self._groups_pagination_next_token = None
         self._clients_pagination_next_token = None
+        self._group_users_pagination_next_token = None
 
     @property
     def user_pool_url(self):

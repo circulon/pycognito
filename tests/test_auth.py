@@ -4,14 +4,22 @@ import os
 import unittest
 from unittest.mock import patch
 
+import boto3
 from botocore.exceptions import ParamValidationError
 from botocore.stub import Stubber
+import moto
 import pendulum
 
 from src.pycognito import Cognito, TokenVerificationException
 from src.pycognito.aws_srp import AWSSRP
 
-from .helpers import mock_authenticate_user, mock_get_params, mock_verify_tokens
+from .helpers import (
+    TOKEN_VALIDITY_PARAMS,
+    mock_authenticate_user,
+    mock_authenticate_user_device_metadata,
+    mock_get_params,
+    mock_verify_tokens,
+)
 
 
 class CognitoAuthTestCase(unittest.TestCase):
@@ -123,7 +131,6 @@ class CognitoAuthTestCase(unittest.TestCase):
             stub.assert_no_pending_responses()
 
     def test_check_token(self):
-        # JWT with exp set to January 1st, 3000 — should not be expired.
         self.user.access_token = (
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG"
             "9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjMyNTAzNjgwMDAwfQ.C-1gPxrhUsiWeCvMvaZuuQYarkDNAc"
@@ -139,8 +146,6 @@ class CognitoAuthTestCase(unittest.TestCase):
     def test_check_token_uses_utc(self):
         """
         Regression: check_token must compare against UTC, not local time.
-        Patch pendulum.now directly so the boundary is evaluated correctly
-        regardless of the system timezone.
         """
 
         def _b64(data):
@@ -158,12 +163,10 @@ class CognitoAuthTestCase(unittest.TestCase):
         )
         self.user.access_token = token
 
-        # One second before expiry → not expired
         one_before = pendulum.datetime(2024, 6, 1, 11, 59, 59, tz="UTC")
         with patch("pendulum.now", return_value=one_before):
             self.assertFalse(self.user.check_token(renew=False))
 
-        # One second after expiry → expired
         one_after = pendulum.datetime(2024, 6, 1, 12, 0, 1, tz="UTC")
         with patch("pendulum.now", return_value=one_after):
             self.assertTrue(self.user.check_token(renew=False))
@@ -211,10 +214,7 @@ class CognitoAuthTestCase(unittest.TestCase):
 
     @patch("src.pycognito.Cognito.verify_token", mock_verify_tokens)
     def test_admin_authenticate(self):
-        """
-        admin_authenticate must use ALLOW_ADMIN_USER_PASSWORD_AUTH (not the
-        deprecated ADMIN_NO_SRP_AUTH) after the section-2 fix.
-        """
+        """admin_authenticate must use ALLOW_ADMIN_USER_PASSWORD_AUTH."""
         stub = Stubber(self.user.client)
         stub.add_response(
             method="admin_initiate_auth",
@@ -229,7 +229,6 @@ class CognitoAuthTestCase(unittest.TestCase):
             expected_params={
                 "UserPoolId": self.cognito_user_pool_id,
                 "ClientId": self.app_id,
-                # Fixed in section 2: was ADMIN_NO_SRP_AUTH
                 "AuthFlow": "ALLOW_ADMIN_USER_PASSWORD_AUTH",
                 "AuthParameters": {
                     "USERNAME": self.username,
@@ -242,6 +241,117 @@ class CognitoAuthTestCase(unittest.TestCase):
             self.assertNotEqual(self.user.access_token, None)
             self.assertNotEqual(self.user.id_token, None)
             self.assertNotEqual(self.user.refresh_token, None)
+            stub.assert_no_pending_responses()
+
+
+# ---------------------------------------------------------------------------
+# Device authentication — PR #306
+# ---------------------------------------------------------------------------
+
+
+class CognitoAuthWithDeviceTestCase(CognitoAuthTestCase):
+    """
+    Extends CognitoAuthTestCase with device metadata pre-seeded on the
+    Cognito instance, verifying that device values flow correctly through
+    the authenticate / renew_access_token paths.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.user.device_key = "us-east-1_de20abce"
+        self.user.device_group_key = "device_group_key"
+        self.user.device_password = "device_password"
+        self.user.device_name = "device_name"
+
+    @patch(
+        "src.pycognito.aws_srp.AWSSRP.authenticate_user",
+        mock_authenticate_user_device_metadata,
+    )
+    @patch("src.pycognito.Cognito.verify_token", mock_verify_tokens)
+    def test_authenticate_sets_device_metadata_from_response(self):
+        """
+        When NewDeviceMetadata is returned, device_key and device_group_key
+        must be updated on the Cognito instance from the response values.
+        confirm_device is also called; we stub it to avoid the raw HTTP call.
+        """
+        with patch(
+            "src.pycognito.aws_srp.AWSSRP.confirm_device",
+            return_value=(None, "new_device_password"),
+        ):
+            self.user.authenticate(self.password)
+
+        self.assertNotEqual(self.user.access_token, None)
+        self.assertNotEqual(self.user.id_token, None)
+        self.assertNotEqual(self.user.refresh_token, None)
+        self.assertEqual(self.user.device_key, "us-east-1_de20abce")
+        self.assertEqual(self.user.device_group_key, "device_group_key")
+
+    @patch(
+        "src.pycognito.aws_srp.AWSSRP.authenticate_user",
+        mock_authenticate_user_device_metadata,
+    )
+    @patch("src.pycognito.Cognito.verify_token", mock_verify_tokens)
+    def test_authenticate_calls_confirm_device_when_new_metadata_present(self):
+        """confirm_device must be called when NewDeviceMetadata is in the response."""
+        with patch(
+            "src.pycognito.aws_srp.AWSSRP.confirm_device",
+            return_value=(None, "new_device_password"),
+        ) as mock_confirm:
+            self.user.authenticate(self.password)
+
+        mock_confirm.assert_called_once()
+
+    @patch("src.pycognito.aws_srp.AWSSRP.authenticate_user", mock_authenticate_user)
+    @patch("src.pycognito.Cognito.verify_token", mock_verify_tokens)
+    def test_authenticate_skips_confirm_device_when_no_new_metadata(self):
+        """confirm_device must NOT be called when NewDeviceMetadata is absent."""
+        with patch("src.pycognito.aws_srp.AWSSRP.confirm_device") as mock_confirm:
+            self.user.authenticate(self.password)
+
+        mock_confirm.assert_not_called()
+
+    @patch(
+        "src.pycognito.aws_srp.AWSSRP.authenticate_user",
+        mock_authenticate_user_device_metadata,
+    )
+    @patch("src.pycognito.Cognito.verify_token", mock_verify_tokens)
+    @patch("src.pycognito.Cognito._add_secret_hash", return_value=None)
+    def test_renew_tokens(self, _):
+        """Override: parent stub must include DEVICE_KEY since device_key is set."""
+        stub = Stubber(self.user.client)
+        stub.add_response(
+            method="initiate_auth",
+            service_response={
+                "AuthenticationResult": {
+                    "TokenType": "admin",
+                    "IdToken": "dummy_token",
+                    "AccessToken": "dummy_token",
+                    "RefreshToken": "dummy_token",
+                    "NewDeviceMetadata": {
+                        "DeviceKey": "us-east-1_de20abce",
+                        "DeviceGroupKey": "device_group_key",
+                    },
+                },
+                "ResponseMetadata": {"HTTPStatusCode": 200},
+            },
+            expected_params={
+                "ClientId": self.app_id,
+                "AuthFlow": "REFRESH_TOKEN_AUTH",
+                "AuthParameters": {
+                    "REFRESH_TOKEN": "dummy_token",
+                    "DEVICE_KEY": self.user.device_key,
+                },
+            },
+        )
+        with (
+            stub,
+            patch(
+                "src.pycognito.aws_srp.AWSSRP.confirm_device",
+                return_value=(None, "new_device_password"),
+            ),
+        ):
+            self.user.authenticate(self.password)
+            self.user.renew_access_token()
             stub.assert_no_pending_responses()
 
 
@@ -309,11 +419,6 @@ class AWSSRPTestCase(unittest.TestCase):
             stub.assert_no_pending_responses()
 
     def test_cognito_formatted_timestamp(self):
-        """
-        get_cognito_formatted_timestamp now accepts pendulum DateTime objects.
-        The format must match Cognito's expected pattern:
-        'Www Mmm D HH:MM:SS UTC YYYY' — no leading zero on single-digit days.
-        """
         cases = [
             (
                 pendulum.datetime(2022, 1, 1, 0, 0, 0, tz="UTC"),
@@ -337,10 +442,6 @@ class AWSSRPTestCase(unittest.TestCase):
                 self.assertEqual(self.aws.get_cognito_formatted_timestamp(dt), expected)
 
     def test_cognito_formatted_timestamp_no_leading_zero(self):
-        """
-        Cognito requires no leading zero on single-digit day numbers.
-        Previously stripped with re.sub; pendulum's D token handles it natively.
-        """
         result = self.aws.get_cognito_formatted_timestamp(
             pendulum.datetime(2022, 3, 5, 8, 0, 0, tz="UTC")
         )
@@ -348,10 +449,6 @@ class AWSSRPTestCase(unittest.TestCase):
         self.assertNotIn(" 05 ", result)
 
     def test_process_challenge_timestamp_is_utc(self):
-        """
-        process_challenge must embed a UTC timestamp; verify the string
-        contains 'UTC' and matches Cognito's format when time is patched.
-        """
         frozen_moment = pendulum.datetime(2024, 3, 7, 15, 30, 0, tz="UTC")
         challenge_parameters = {
             "USERNAME": self.username or "testuser",
@@ -360,8 +457,6 @@ class AWSSRPTestCase(unittest.TestCase):
             "SRP_B": "00" * 16,
             "SECRET_BLOCK": "",
         }
-        # Patch pendulum.now so the embedded TIMESTAMP is deterministic,
-        # and mock HKDF/HMAC so we only need to inspect TIMESTAMP.
         with (
             patch("pendulum.now", return_value=frozen_moment),
             patch.object(
@@ -379,6 +474,170 @@ class AWSSRPTestCase(unittest.TestCase):
 
         self.assertIn("UTC", response["TIMESTAMP"])
         self.assertEqual(response["TIMESTAMP"], "Thu Mar 7 15:30:00 UTC 2024")
+
+
+# ---------------------------------------------------------------------------
+# admin_renew_access_token
+# ---------------------------------------------------------------------------
+
+
+@moto.mock_aws
+class AdminRenewAccessTokenTestCase(unittest.TestCase):
+    """Tests for auth.py: admin_renew_access_token."""
+
+    username = "user@test.com"
+    password = "Testing123!"
+
+    def setUp(self):
+        idp = boto3.client("cognito-idp", region_name="us-east-1")
+        pool = idp.create_user_pool(
+            PoolName="pycognito-test-pool",
+            AliasAttributes=["email"],
+            UsernameAttributes=["email"],
+        )
+        self.user_pool_id = pool["UserPool"]["Id"]
+        client_app = idp.create_user_pool_client(
+            UserPoolId=self.user_pool_id,
+            ClientName="test-client",
+            **TOKEN_VALIDITY_PARAMS,
+        )
+        self.client_id = client_app["UserPoolClient"]["ClientId"]
+        idp.admin_create_user(
+            UserPoolId=self.user_pool_id,
+            Username=self.username,
+            TemporaryPassword=self.password,
+            MessageAction="SUPPRESS",
+        )
+        idp.admin_set_user_password(
+            UserPoolId=self.user_pool_id,
+            Username=self.username,
+            Password=self.password,
+            Permanent=True,
+        )
+
+    def _cognito(self):
+        return Cognito(
+            user_pool_id=self.user_pool_id,
+            client_id=self.client_id,
+            username=self.username,
+        )
+
+    def test_admin_renew_access_token_refreshes_tokens(self):
+        """After a successful refresh the access_token is still set."""
+        cognito = self._cognito()
+        cognito.authenticate(self.password)
+        self.assertIsNotNone(cognito.access_token)
+        self.assertIsNotNone(cognito.refresh_token)
+
+        cognito.admin_renew_access_token()
+
+        self.assertIsNotNone(cognito.access_token)
+        self.assertIsNotNone(cognito.id_token)
+
+    def test_admin_renew_access_token_uses_admin_initiate_auth(self):
+        """admin_renew_access_token uses admin_initiate_auth, not initiate_auth."""
+        cognito = self._cognito()
+        cognito.authenticate(self.password)
+        refresh_token = cognito.refresh_token
+
+        # Wrap the boto3 client to spy on calls
+        original_admin_initiate_auth = cognito.client.admin_initiate_auth
+        calls = []
+
+        def spy(*args, **kwargs):
+            calls.append(kwargs)
+            return original_admin_initiate_auth(*args, **kwargs)
+
+        cognito.client.admin_initiate_auth = spy
+        cognito.admin_renew_access_token()
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["AuthFlow"], "REFRESH_TOKEN_AUTH")
+        self.assertEqual(calls[0]["AuthParameters"]["REFRESH_TOKEN"], refresh_token)
+
+    def test_admin_renew_access_token_requires_refresh_token(self):
+        """Calling without a valid refresh token should raise an exception.
+        Moto raises KeyError for an unrecognised refresh token rather than
+        a ClientError, so we assert on the broader Exception base class."""
+        cognito = self._cognito()
+        cognito.refresh_token = "invalid_token"
+        with self.assertRaises(Exception):
+            cognito.admin_renew_access_token()
+
+
+# ---------------------------------------------------------------------------
+# admin_user_global_sign_out
+# ---------------------------------------------------------------------------
+
+
+@moto.mock_aws
+class AdminUserGlobalSignOutTestCase(unittest.TestCase):
+    """Tests for tokens.py: admin_user_global_sign_out."""
+
+    username = "user@test.com"
+    password = "Testing123!"
+
+    def setUp(self):
+        idp = boto3.client("cognito-idp", region_name="us-east-1")
+        pool = idp.create_user_pool(
+            PoolName="pycognito-test-pool",
+            AliasAttributes=["email"],
+            UsernameAttributes=["email"],
+        )
+        self.user_pool_id = pool["UserPool"]["Id"]
+        client_app = idp.create_user_pool_client(
+            UserPoolId=self.user_pool_id,
+            ClientName="test-client",
+            **TOKEN_VALIDITY_PARAMS,
+        )
+        self.client_id = client_app["UserPoolClient"]["ClientId"]
+        idp.admin_create_user(
+            UserPoolId=self.user_pool_id,
+            Username=self.username,
+            TemporaryPassword=self.password,
+            MessageAction="SUPPRESS",
+        )
+        idp.admin_set_user_password(
+            UserPoolId=self.user_pool_id,
+            Username=self.username,
+            Password=self.password,
+            Permanent=True,
+        )
+
+    def _cognito(self):
+        return Cognito(
+            user_pool_id=self.user_pool_id,
+            client_id=self.client_id,
+            username=self.username,
+        )
+
+    def test_admin_user_global_sign_out_self(self):
+        """Signs out self.username when no explicit username is given."""
+        cognito = self._cognito()
+        cognito.authenticate(self.password)
+        cognito.admin_user_global_sign_out()
+
+    def test_admin_user_global_sign_out_explicit_username(self):
+        """Signs out an explicitly specified username."""
+        cognito = self._cognito()
+        cognito.admin_user_global_sign_out(username=self.username)
+
+    def test_admin_user_global_sign_out_defaults_to_self_username(self):
+        """Without an argument the method uses self.username."""
+        cognito = self._cognito()
+        calls = []
+        original = cognito.client.admin_user_global_sign_out
+
+        def spy(**kwargs):
+            calls.append(kwargs)
+            return original(**kwargs)
+
+        cognito.client.admin_user_global_sign_out = spy
+        cognito.admin_user_global_sign_out()
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["Username"], self.username)
+        self.assertEqual(calls[0]["UserPoolId"], self.user_pool_id)
 
 
 if __name__ == "__main__":

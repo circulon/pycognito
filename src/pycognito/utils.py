@@ -112,6 +112,10 @@ class RequestsSrpAuth(AuthBase):
         client_id: str,
         user_pool_region: Optional[str] = None,
         client_secret: Optional[str] = None,
+        device_key: str = None,
+        device_group_key: str = None,
+        device_password: str = None,
+        device_name: str = None,
     ):
         # Import here to avoid a circular import — Cognito lives in __init__
         from . import Cognito  # noqa
@@ -122,6 +126,10 @@ class RequestsSrpAuth(AuthBase):
             user_pool_region=user_pool_region,
             username=username,
             client_secret=client_secret,
+            device_key=device_key,
+            device_group_key=device_group_key,
+            device_password=device_password,
+            device_name=device_name,
         )
         self.cognito_client.authenticate(password=password)
 

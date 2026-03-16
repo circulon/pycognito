@@ -1,12 +1,13 @@
 """
-Tests for not-yet-implemented stubs in user_pool.py:
-  - Device management
-  - Group CRUD
-  - Federated identity
-  - User pool management
+Tests for not-yet-implemented stubs in user_pool.py.
 
-Replace each assertRaises block with real assertions as each stub is
-implemented.
+Implemented stubs (real tests elsewhere):
+  - create_group, update_group, delete_group → test_user_pool.py: GroupCRUDTestCase
+  - list_users_in_group                      → test_user_pool.py: ListUsersInGroupTestCase
+  - describe_user_pool, update_user_pool     → test_user_pool.py: UserPoolConfigTestCase
+  - admin_link_provider_for_user (pending — no moto support)
+  - admin_disable_provider_for_user (pending — no moto support)
+  - device methods (5) (pending — no moto support)
 """
 
 import unittest
@@ -29,7 +30,7 @@ class _Base(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Device management
+# Device management (no moto support)
 # ---------------------------------------------------------------------------
 
 
@@ -81,56 +82,7 @@ class DeviceManagementStubsTestCase(_Base):
 
 
 # ---------------------------------------------------------------------------
-# Group CRUD
-# ---------------------------------------------------------------------------
-
-
-class GroupCRUDStubsTestCase(_Base):
-    def test_create_group_not_implemented(self):
-        with self.assertRaises(NotImplementedError) as ctx:
-            self._cognito().create_group("my-group")
-        self.assertIn("create_group", str(ctx.exception))
-
-    def test_create_group_accepts_optional_params(self):
-        """Placeholder: once implemented, verify description/role_arn/precedence are forwarded."""
-        with self.assertRaises(NotImplementedError):
-            self._cognito().create_group(
-                "my-group",
-                description="desc",
-                role_arn="arn:aws:iam::123:role/MyRole",
-                precedence=10,
-            )
-
-    def test_update_group_not_implemented(self):
-        with self.assertRaises(NotImplementedError) as ctx:
-            self._cognito().update_group("my-group")
-        self.assertIn("update_group", str(ctx.exception))
-
-    def test_update_group_accepts_optional_params(self):
-        """Placeholder: once implemented, verify partial updates are supported."""
-        with self.assertRaises(NotImplementedError):
-            self._cognito().update_group("my-group", description="new desc")
-
-    def test_delete_group_not_implemented(self):
-        with self.assertRaises(NotImplementedError) as ctx:
-            self._cognito().delete_group("my-group")
-        self.assertIn("delete_group", str(ctx.exception))
-
-    def test_list_users_in_group_not_implemented(self):
-        with self.assertRaises(NotImplementedError) as ctx:
-            self._cognito().list_users_in_group("my-group")
-        self.assertIn("list_users_in_group", str(ctx.exception))
-
-    def test_list_users_in_group_accepts_pagination_params(self):
-        """Placeholder: once implemented, verify page_limit and page_token are forwarded."""
-        with self.assertRaises(NotImplementedError):
-            self._cognito().list_users_in_group(
-                "my-group", page_limit=5, page_token="tok"
-            )
-
-
-# ---------------------------------------------------------------------------
-# Federated identity
+# Federated identity (no moto support)
 # ---------------------------------------------------------------------------
 
 
@@ -152,35 +104,6 @@ class FederatedIdentityStubsTestCase(_Base):
                 provider_attribute_value="google-sub-123",
             )
         self.assertIn("admin_disable_provider_for_user", str(ctx.exception))
-
-
-# ---------------------------------------------------------------------------
-# User pool management
-# ---------------------------------------------------------------------------
-
-
-class UserPoolManagementStubsTestCase(_Base):
-    def test_describe_user_pool_not_implemented(self):
-        with self.assertRaises(NotImplementedError) as ctx:
-            self._cognito().describe_user_pool()
-        self.assertIn("describe_user_pool", str(ctx.exception))
-
-    def test_describe_user_pool_accepts_explicit_pool_id(self):
-        """Placeholder: once implemented, verify an explicit pool_id is accepted."""
-        with self.assertRaises(NotImplementedError):
-            self._cognito().describe_user_pool(pool_id="us-east-1_other")
-
-    def test_update_user_pool_not_implemented(self):
-        with self.assertRaises(NotImplementedError) as ctx:
-            self._cognito().update_user_pool()
-        self.assertIn("update_user_pool", str(ctx.exception))
-
-    def test_update_user_pool_passes_kwargs(self):
-        """Placeholder: once implemented, verify kwargs reach UpdateUserPool."""
-        with self.assertRaises(NotImplementedError):
-            self._cognito().update_user_pool(
-                Policies={"PasswordPolicy": {"MinimumLength": 12}}
-            )
 
 
 if __name__ == "__main__":

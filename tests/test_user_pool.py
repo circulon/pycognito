@@ -1,34 +1,21 @@
 import unittest
 
 import boto3
+from botocore.exceptions import ClientError
 import moto
 
-from src.pycognito import Cognito, is_cognito_attr_list
+from src.pycognito import Cognito, GroupObj, UserObj, is_cognito_attr_list
 
-# ---------------------------------------------------------------------------
-# Shared pool setup used by all three test cases in this module
-# ---------------------------------------------------------------------------
+from .helpers import TOKEN_VALIDITY_PARAMS
 
 
-def _create_pool_and_client(cognito_idp_client, pool_name="pycognito-test-pool"):
+def _create_pool(cognito_idp_client, pool_name="pycognito-test-pool"):
     user_pool = cognito_idp_client.create_user_pool(
         PoolName=pool_name,
         AliasAttributes=["email"],
         UsernameAttributes=["email"],
     )
     return user_pool["UserPool"]["Id"]
-
-
-TOKEN_VALIDITY_PARAMS = {
-    "RefreshTokenValidity": 1,
-    "AccessTokenValidity": 1,
-    "IdTokenValidity": 1,
-    "TokenValidityUnits": {
-        "AccessToken": "hour",
-        "IdToken": "hour",
-        "RefreshToken": "days",
-    },
-}
 
 
 # ---------------------------------------------------------------------------
@@ -40,9 +27,9 @@ TOKEN_VALIDITY_PARAMS = {
 class CognitoUserPoolClientTestCase(unittest.TestCase):
     client_name = "test-client"
 
-    def setUp(self) -> None:
+    def setUp(self):
         self.cognito_idp = boto3.client("cognito-idp", region_name="us-east-1")
-        self.user_pool_id = _create_pool_and_client(self.cognito_idp)
+        self.user_pool_id = _create_pool(self.cognito_idp)
         self.params = TOKEN_VALIDITY_PARAMS.copy()
 
     def test_create_user_pool_client(self):
@@ -69,7 +56,7 @@ class CognitoUserPoolClientTestCase(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Pagination
+# Pagination (users, groups, clients)
 # ---------------------------------------------------------------------------
 
 
@@ -77,9 +64,9 @@ class CognitoUserPoolClientTestCase(unittest.TestCase):
 class PaginationTestCase(unittest.TestCase):
     invalid_user_pool_id = "us-east-1_123456789"
 
-    def setUp(self) -> None:
+    def setUp(self):
         cognito_idp_client = boto3.client("cognito-idp", region_name="us-east-1")
-        self.user_pool_id = _create_pool_and_client(cognito_idp_client)
+        self.user_pool_id = _create_pool(cognito_idp_client)
 
         for i in range(2):
             cognito_idp_client.admin_create_user(
@@ -114,7 +101,6 @@ class PaginationTestCase(unittest.TestCase):
         all_users = cognito.get_users()
         self.assertEqual(len(all_users), 2)
 
-        # Pool ID override still works
         cognito.user_pool_id = self.invalid_user_pool_id
         self.assertEqual(len(cognito.get_users(pool_id=self.user_pool_id)), 2)
 
@@ -173,9 +159,9 @@ class AdminUpdateProfileTestCase(unittest.TestCase):
     username = "user@test.com"
     password = "Testing123!"
 
-    def setUp(self) -> None:
+    def setUp(self):
         cognito_idp_client = boto3.client("cognito-idp", region_name="us-east-1")
-        self.user_pool_id = _create_pool_and_client(cognito_idp_client)
+        self.user_pool_id = _create_pool(cognito_idp_client)
 
         cognito_idp_client.admin_create_user(
             UserPoolId=self.user_pool_id,
@@ -237,14 +223,235 @@ class AdminUpdateProfileTestCase(unittest.TestCase):
         )
         self.assertEqual(cognito.get_user().given_name, "Bob")
 
-        # is_cognito_attr_list returns False on bad input, so dict_to_cognito is
-        # called and raises AttributeError on the list.
         with self.assertRaises(AttributeError) as ctx:
             cognito.admin_update_profile(
                 attrs=[{"Name": "given_name", "Value": "John", "Bad_Key": "Test"}],
                 username=self.username,
             )
         self.assertEqual(str(ctx.exception), "'list' object has no attribute 'items'")
+
+
+# ---------------------------------------------------------------------------
+# Group CRUD  (create_group, update_group, delete_group)
+# ---------------------------------------------------------------------------
+
+
+@moto.mock_aws
+class GroupCRUDTestCase(unittest.TestCase):
+    """Tests for user_pool.py: create_group, update_group, delete_group."""
+
+    def setUp(self):
+        idp = boto3.client("cognito-idp", region_name="us-east-1")
+        self.user_pool_id = _create_pool(idp)
+        self.cognito = Cognito(user_pool_id=self.user_pool_id)
+
+    def test_create_group_returns_group_obj(self):
+        group = self.cognito.create_group("test-group")
+        self.assertIsInstance(group, GroupObj)
+        self.assertEqual(group.group_name, "test-group")
+
+    def test_create_group_with_all_optional_params(self):
+        group = self.cognito.create_group(
+            "full-group",
+            description="A full group",
+            precedence=5,
+        )
+        self.assertEqual(group.group_name, "full-group")
+        self.assertEqual(group.description, "A full group")
+        self.assertEqual(group.precedence, 5)
+
+    def test_create_group_is_retrievable(self):
+        self.cognito.create_group("retrievable-group", description="check me")
+        fetched = self.cognito.get_group("retrievable-group")
+        self.assertEqual(fetched.group_name, "retrievable-group")
+        self.assertEqual(fetched.description, "check me")
+
+    def test_update_group_changes_description(self):
+        self.cognito.create_group("update-me", description="original")
+        self.cognito.update_group("update-me", description="updated")
+        fetched = self.cognito.get_group("update-me")
+        self.assertEqual(fetched.description, "updated")
+
+    def test_update_group_changes_precedence(self):
+        self.cognito.create_group("prec-group", precedence=1)
+        self.cognito.update_group("prec-group", precedence=99)
+        fetched = self.cognito.get_group("prec-group")
+        self.assertEqual(fetched.precedence, 99)
+
+    def test_delete_group_removes_group(self):
+        self.cognito.create_group("delete-me")
+        self.cognito.delete_group("delete-me")
+        with self.assertRaises(ClientError) as ctx:
+            self.cognito.get_group("delete-me")
+        self.assertIn(
+            ctx.exception.response["Error"]["Code"],
+            ("ResourceNotFoundException", "GroupNotFoundException"),
+        )
+
+    def test_create_multiple_groups(self):
+        for name in ("alpha", "beta", "gamma"):
+            self.cognito.create_group(name)
+        groups = self.cognito.get_groups()
+        names = {g.group_name for g in groups}
+        self.assertIn("alpha", names)
+        self.assertIn("beta", names)
+        self.assertIn("gamma", names)
+
+
+# ---------------------------------------------------------------------------
+# list_users_in_group
+# ---------------------------------------------------------------------------
+
+
+@moto.mock_aws
+class ListUsersInGroupTestCase(unittest.TestCase):
+    """Tests for user_pool.py: list_users_in_group."""
+
+    def setUp(self):
+        idp = boto3.client("cognito-idp", region_name="us-east-1")
+        self.user_pool_id = _create_pool(idp)
+        self._idp = idp
+
+        idp.create_group(GroupName="staff", UserPoolId=self.user_pool_id)
+
+        for i in range(3):
+            idp.admin_create_user(
+                UserPoolId=self.user_pool_id,
+                Username=f"staff{i}@test.com",
+                TemporaryPassword="Test1!",
+                MessageAction="SUPPRESS",
+            )
+            idp.admin_add_user_to_group(
+                UserPoolId=self.user_pool_id,
+                Username=f"staff{i}@test.com",
+                GroupName="staff",
+            )
+
+        idp.create_group(GroupName="empty", UserPoolId=self.user_pool_id)
+        self.cognito = Cognito(user_pool_id=self.user_pool_id)
+
+    def test_returns_all_users_without_page_limit(self):
+        users = self.cognito.list_users_in_group("staff")
+        self.assertEqual(len(users), 3)
+        self.assertTrue(all(isinstance(u, UserObj) for u in users))
+
+    def test_empty_group_returns_empty_list(self):
+        users = self.cognito.list_users_in_group("empty")
+        self.assertEqual(users, [])
+
+    def test_users_have_username_set(self):
+        """Verify all 3 users are returned. With UsernameAttributes=["email"]
+        moto returns the sub UUID as Username in list_users_in_group, so we
+        verify count and that each UserObj is well-formed rather than matching
+        email addresses directly.
+        """
+        users = self.cognito.list_users_in_group("staff")
+        self.assertEqual(len(users), 3)
+        self.assertTrue(all(u.username is not None for u in users))
+
+    def test_pagination_page_limit_returns_subset(self):
+        page = self.cognito.list_users_in_group("staff", page_limit=2)
+        self.assertEqual(len(page), 2)
+
+    def test_pagination_token_is_set_when_more_results_exist(self):
+        self.cognito.list_users_in_group("staff", page_limit=2)
+        token = self.cognito.get_group_users_pagination_token()
+        self.assertIsNotNone(token)
+
+    def test_pagination_token_is_none_when_exhausted(self):
+        self.cognito.list_users_in_group("staff", page_limit=10)
+        token = self.cognito.get_group_users_pagination_token()
+        self.assertIsNone(token)
+
+    def test_pagination_second_page_completes_results(self):
+        page1 = self.cognito.list_users_in_group("staff", page_limit=2)
+        token = self.cognito.get_group_users_pagination_token()
+        page2 = self.cognito.list_users_in_group(
+            "staff", page_limit=2, page_token=token
+        )
+
+        all_usernames = {u.username for u in page1 + page2}
+        self.assertEqual(len(all_usernames), 3)
+
+    def test_attr_map_is_applied(self):
+        """attr_map is passed through to UserObj attribute mapping."""
+        users = self.cognito.list_users_in_group("staff", attr_map={})
+        self.assertTrue(all(isinstance(u, UserObj) for u in users))
+
+
+# ---------------------------------------------------------------------------
+# describe_user_pool / update_user_pool
+# ---------------------------------------------------------------------------
+
+
+@moto.mock_aws
+class UserPoolConfigTestCase(unittest.TestCase):
+    """Tests for user_pool.py: describe_user_pool, update_user_pool."""
+
+    def setUp(self):
+        idp = boto3.client("cognito-idp", region_name="us-east-1")
+        pool = idp.create_user_pool(
+            PoolName="config-test-pool",
+            AliasAttributes=["email"],
+            UsernameAttributes=["email"],
+        )
+        self.user_pool_id = pool["UserPool"]["Id"]
+        self.cognito = Cognito(user_pool_id=self.user_pool_id)
+
+    def test_describe_user_pool_returns_dict(self):
+        result = self.cognito.describe_user_pool()
+        self.assertIsInstance(result, dict)
+
+    def test_describe_user_pool_correct_id_and_name(self):
+        result = self.cognito.describe_user_pool()
+        self.assertEqual(result["Id"], self.user_pool_id)
+        self.assertEqual(result["Name"], "config-test-pool")
+
+    def test_describe_user_pool_with_explicit_pool_id(self):
+        result = self.cognito.describe_user_pool(pool_id=self.user_pool_id)
+        self.assertEqual(result["Id"], self.user_pool_id)
+
+    def test_describe_user_pool_strips_response_metadata(self):
+        result = self.cognito.describe_user_pool()
+        self.assertNotIn("ResponseMetadata", result)
+
+    def test_update_user_pool_password_policy(self):
+        self.cognito.update_user_pool(
+            Policies={
+                "PasswordPolicy": {
+                    "MinimumLength": 12,
+                    "RequireUppercase": True,
+                    "RequireLowercase": True,
+                    "RequireNumbers": True,
+                    "RequireSymbols": False,
+                }
+            }
+        )
+        result = self.cognito.describe_user_pool()
+        policy = result["Policies"]["PasswordPolicy"]
+        self.assertEqual(policy["MinimumLength"], 12)
+        self.assertTrue(policy["RequireUppercase"])
+
+    def test_update_user_pool_with_explicit_pool_id(self):
+        self.cognito.update_user_pool(
+            pool_id=self.user_pool_id,
+            Policies={
+                "PasswordPolicy": {
+                    "MinimumLength": 8,
+                    "RequireUppercase": False,
+                    "RequireLowercase": False,
+                    "RequireNumbers": False,
+                    "RequireSymbols": False,
+                }
+            },
+        )
+        result = self.cognito.describe_user_pool()
+        self.assertEqual(result["Policies"]["PasswordPolicy"]["MinimumLength"], 8)
+
+    def test_update_user_pool_mfa_configuration(self):
+        self.cognito.update_user_pool(MfaConfiguration="OPTIONAL")
+        result = self.cognito.describe_user_pool()
+        self.assertEqual(result["MfaConfiguration"], "OPTIONAL")
 
 
 if __name__ == "__main__":

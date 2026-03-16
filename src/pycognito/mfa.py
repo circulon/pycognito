@@ -133,7 +133,7 @@ class MFAMixin:
     ):
         """
         Admin-privilege version of set_user_mfa_preference — changes another
-        user's MFA settings without their access token.
+        user's MFA settings without requiring their access token.
         Calls cognito-idp AdminSetUserMFAPreference.
         :param username: The user whose MFA preference to update.
         :param sms_mfa: Enable SMS MFA.
@@ -142,10 +142,28 @@ class MFAMixin:
         :type software_token_mfa: bool
         :param preferred: "SMS", "SOFTWARE_TOKEN", or None if both are False.
         :type preferred: str or None
-        :raises NotImplementedError:
         """
-        raise NotImplementedError(
-            "admin_set_user_mfa_preference is not yet implemented"
+        sms_mfa_settings = {"Enabled": bool(sms_mfa), "PreferredMfa": False}
+        software_token_mfa_settings = {
+            "Enabled": bool(software_token_mfa),
+            "PreferredMfa": False,
+        }
+        if not (bool(sms_mfa) or bool(software_token_mfa)):
+            # Disable all MFA — leave both PreferredMfa as False
+            pass
+        elif preferred == "SMS":
+            sms_mfa_settings["PreferredMfa"] = True
+        elif preferred == "SOFTWARE_TOKEN":
+            software_token_mfa_settings["PreferredMfa"] = True
+        else:
+            raise ValueError(
+                "preferred must have a value of 'SMS', 'SOFTWARE_TOKEN', or None."
+            )
+        self.client.admin_set_user_mfa_preference(
+            UserPoolId=self.user_pool_id,
+            Username=username,
+            SMSMfaSettings=sms_mfa_settings,
+            SoftwareTokenMfaSettings=software_token_mfa_settings,
         )
 
     def get_user_pool_mfa_config(self, pool_id=None):
@@ -153,10 +171,13 @@ class MFAMixin:
         Return the pool-level MFA policy.
         Calls cognito-idp GetUserPoolMfaConfig.
         :param pool_id: The user pool ID. Defaults to self.user_pool_id.
-        :return: MFA configuration dict.
-        :raises NotImplementedError:
+        :return: MFA configuration dict (ResponseMetadata stripped).
         """
-        raise NotImplementedError("get_user_pool_mfa_config is not yet implemented")
+        if pool_id is None:
+            pool_id = self.user_pool_id
+        response = self.client.get_user_pool_mfa_config(UserPoolId=pool_id)
+        response.pop("ResponseMetadata", None)
+        return response
 
     def set_user_pool_mfa_config(self, pool_id=None, **kwargs):
         """
@@ -165,6 +186,7 @@ class MFAMixin:
         :param pool_id: The user pool ID. Defaults to self.user_pool_id.
         :param kwargs: SetUserPoolMfaConfig parameters (e.g. SmsMfaConfiguration,
             SoftwareTokenMfaConfiguration, MfaConfiguration).
-        :raises NotImplementedError:
         """
-        raise NotImplementedError("set_user_pool_mfa_config is not yet implemented")
+        if pool_id is None:
+            pool_id = self.user_pool_id
+        self.client.set_user_pool_mfa_config(UserPoolId=pool_id, **kwargs)

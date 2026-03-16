@@ -2,12 +2,9 @@
 Tests for not-yet-implemented stubs in auth.py (auth flows) and
 tokens.py (token management).
 
-Each test has:
-  - A primary assertion that NotImplementedError is raised and the method
-    name appears in the message.
-  - One or more placeholder tests that document the expected contract.
-    These also raise NotImplementedError today — replace them with real
-    assertions as each stub is implemented.
+Implemented stubs (real tests elsewhere):
+  - admin_renew_access_token  → test_auth.py: AdminRenewAccessTokenTestCase
+  - admin_user_global_sign_out → test_auth.py: AdminUserGlobalSignOutTestCase
 """
 
 import unittest
@@ -29,7 +26,7 @@ class _Base(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Auth flows  (auth.py)
+# Auth flows — authenticate_custom_auth, admin_authenticate_with_mfa
 # ---------------------------------------------------------------------------
 
 
@@ -54,19 +51,9 @@ class AuthFlowStubsTestCase(_Base):
         with self.assertRaises(NotImplementedError):
             self._cognito().admin_authenticate_with_mfa("somepassword")
 
-    def test_admin_renew_access_token_not_implemented(self):
-        with self.assertRaises(NotImplementedError) as ctx:
-            self._cognito().admin_renew_access_token()
-        self.assertIn("admin_renew_access_token", str(ctx.exception))
-
-    def test_admin_renew_access_token_updates_access_token(self):
-        """Placeholder: once implemented, verify access_token is updated."""
-        with self.assertRaises(NotImplementedError):
-            self._cognito().admin_renew_access_token()
-
 
 # ---------------------------------------------------------------------------
-# Token management  (tokens.py)
+# Token management — revoke_token (no moto support)
 # ---------------------------------------------------------------------------
 
 
@@ -87,16 +74,6 @@ class TokenManagementStubsTestCase(_Base):
         c.refresh_token = "stored_refresh_token"
         with self.assertRaises(NotImplementedError):
             c.revoke_token()
-
-    def test_admin_user_global_sign_out_not_implemented(self):
-        with self.assertRaises(NotImplementedError) as ctx:
-            self._cognito().admin_user_global_sign_out()
-        self.assertIn("admin_user_global_sign_out", str(ctx.exception))
-
-    def test_admin_user_global_sign_out_accepts_explicit_username(self):
-        """Placeholder: once implemented, verify an explicit username is accepted."""
-        with self.assertRaises(NotImplementedError):
-            self._cognito().admin_user_global_sign_out(username="otheruser")
 
 
 if __name__ == "__main__":

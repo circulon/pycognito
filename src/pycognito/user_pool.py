@@ -29,6 +29,10 @@ class UserPoolMixin:
         """Return the pagination token set by the last list_user_pool_clients call."""
         return self._clients_pagination_next_token
 
+    def get_group_users_pagination_token(self) -> Union[str, None]:
+        """Return the pagination token set by the last list_users_in_group call."""
+        return self._group_users_pagination_next_token
+
     # ------------------------------------------------------------------
     # Object factories
     # ------------------------------------------------------------------
@@ -587,9 +591,16 @@ class UserPoolMixin:
         :param role_arn: Optional IAM role ARN.
         :param precedence: Optional integer precedence.
         :return: GroupObj instance for the created group.
-        :raises NotImplementedError:
         """
-        raise NotImplementedError("create_group is not yet implemented")
+        kwargs = {"GroupName": group_name, "UserPoolId": self.user_pool_id}
+        if description is not None:
+            kwargs["Description"] = description
+        if role_arn is not None:
+            kwargs["RoleArn"] = role_arn
+        if precedence is not None:
+            kwargs["Precedence"] = precedence
+        response = self.client.create_group(**kwargs)
+        return self.get_group_obj(response["Group"])
 
     def update_group(
         self, group_name, description=None, role_arn=None, precedence=None
@@ -601,18 +612,26 @@ class UserPoolMixin:
         :param description: New description.
         :param role_arn: New IAM role ARN.
         :param precedence: New precedence integer.
-        :raises NotImplementedError:
         """
-        raise NotImplementedError("update_group is not yet implemented")
+        kwargs = {"GroupName": group_name, "UserPoolId": self.user_pool_id}
+        if description is not None:
+            kwargs["Description"] = description
+        if role_arn is not None:
+            kwargs["RoleArn"] = role_arn
+        if precedence is not None:
+            kwargs["Precedence"] = precedence
+        self.client.update_group(**kwargs)
 
     def delete_group(self, group_name):
         """
         Delete a group from the user pool.
         Calls cognito-idp DeleteGroup.
         :param group_name: Name of the group to delete.
-        :raises NotImplementedError:
         """
-        raise NotImplementedError("delete_group is not yet implemented")
+        self.client.delete_group(
+            GroupName=group_name,
+            UserPoolId=self.user_pool_id,
+        )
 
     def list_users_in_group(
         self,
@@ -624,15 +643,45 @@ class UserPoolMixin:
         """
         Return all users that belong to the specified group.
         Calls cognito-idp ListUsersInGroup with automatic pagination unless
-        page_limit is set.
+        page_limit is set.  When page_limit is set the next-page token is
+        stored in self._group_users_pagination_next_token.
         :param group_name: The group name to query.
         :param attr_map: Optional attribute map applied to each UserObj.
         :param page_limit: Maximum results from a single request.
         :param page_token: Pagination token for the next page.
         :return: List of UserObj instances.
-        :raises NotImplementedError:
         """
-        raise NotImplementedError("list_users_in_group is not yet implemented")
+        kwargs = {"GroupName": group_name, "UserPoolId": self.user_pool_id}
+        if page_limit:
+            kwargs["Limit"] = page_limit
+        if page_token:
+            kwargs["NextToken"] = page_token
+
+        response = self.client.list_users_in_group(**kwargs)
+        user_list = response.get("Users", [])
+        next_token = response.get("NextToken")
+
+        if page_limit is None:
+            while next_token:
+                response = self.client.list_users_in_group(
+                    GroupName=group_name,
+                    UserPoolId=self.user_pool_id,
+                    NextToken=next_token,
+                )
+                user_list.extend(response.get("Users", []))
+                next_token = response.get("NextToken")
+        else:
+            self._group_users_pagination_next_token = next_token
+
+        return [
+            self.get_user_obj(
+                user.get("Username"),
+                attribute_list=user.get("Attributes"),
+                metadata={"username": user.get("Username")},
+                attr_map=attr_map,
+            )
+            for user in user_list
+        ]
 
     # ------------------------------------------------------------------
     # Federated identity stubs
@@ -679,9 +728,11 @@ class UserPoolMixin:
         Calls cognito-idp DescribeUserPool.
         :param pool_id: The user pool ID. Defaults to self.user_pool_id.
         :return: User pool configuration dict.
-        :raises NotImplementedError:
         """
-        raise NotImplementedError("describe_user_pool is not yet implemented")
+        if pool_id is None:
+            pool_id = self.user_pool_id
+        response = self.client.describe_user_pool(UserPoolId=pool_id)
+        return response["UserPool"]
 
     def update_user_pool(self, pool_id=None, **kwargs):
         """
@@ -690,9 +741,10 @@ class UserPoolMixin:
         :param pool_id: The user pool ID. Defaults to self.user_pool_id.
         :param kwargs: UpdateUserPool parameters (e.g. Policies, LambdaConfig,
             AutoVerifiedAttributes, SmsConfiguration, EmailConfiguration).
-        :raises NotImplementedError:
         """
-        raise NotImplementedError("update_user_pool is not yet implemented")
+        if pool_id is None:
+            pool_id = self.user_pool_id
+        self.client.update_user_pool(UserPoolId=pool_id, **kwargs)
 
     # ------------------------------------------------------------------
     # Session helper

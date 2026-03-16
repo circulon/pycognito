@@ -159,9 +159,13 @@ class TokensMixin:
         specified user regardless of which client they used.
         Calls cognito-idp AdminUserGlobalSignOut.
         :param username: Username to sign out. Defaults to self.username.
-        :raises NotImplementedError:
         """
-        raise NotImplementedError("admin_user_global_sign_out is not yet implemented")
+        if username is None:
+            username = self.username
+        self.client.admin_user_global_sign_out(
+            UserPoolId=self.user_pool_id,
+            Username=username,
+        )
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -178,3 +182,8 @@ class TokensMixin:
         if "RefreshToken" in tokens["AuthenticationResult"]:
             self.refresh_token = tokens["AuthenticationResult"]["RefreshToken"]
         self.token_type = tokens["AuthenticationResult"]["TokenType"]
+
+        if "NewDeviceMetadata" in tokens["AuthenticationResult"]:
+            device_metadata = tokens["AuthenticationResult"]["NewDeviceMetadata"]
+            self.device_key = device_metadata.get("DeviceKey")
+            self.device_group_key = device_metadata.get("DeviceGroupKey")
