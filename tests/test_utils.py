@@ -78,8 +78,9 @@ class UtilsTestCase(unittest.TestCase):
             username=self.username,
             password=self.password,
             user_pool_id=self.user_pool_id,
-            user_pool_region="us-east-1",
+            user_pool_region="ap-southeast-2",
             client_id=self.client_id,
+            boto3_client_kwargs=json.loads(os.environ.get("BOTO3_CLIENT_EXTRAS", "{}")),
         )
 
         req = requests.get("http://test.com", auth=srp_auth)
@@ -89,8 +90,6 @@ class UtilsTestCase(unittest.TestCase):
         access_token_orig = srp_auth.cognito_client.access_token
 
         # Advance time 2 hours by patching pendulum.now directly.
-        # freezegun does not freeze pendulum's internal clock, so we patch
-        # the source of truth that check_token() actually reads.
         with patch("pendulum.now", return_value=now.add(hours=2)):
             req = requests.get("http://test.com", auth=srp_auth)
             req.raise_for_status()

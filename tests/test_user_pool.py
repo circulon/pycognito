@@ -1,3 +1,5 @@
+import json
+import os
 import unittest
 
 import boto3
@@ -31,7 +33,11 @@ class CognitoUserPoolClientTestCase(unittest.TestCase):
         self.params = TOKEN_VALIDITY_PARAMS.copy()
 
     def test_create_user_pool_client(self):
-        cognito = Cognito(user_pool_id=self.user_pool_id, client_id=None)
+        cognito = Cognito(
+            user_pool_id=self.user_pool_id,
+            client_id=None,
+            boto3_client_kwargs=json.loads(os.environ.get("BOTO3_CLIENT_EXTRAS", "{}")),
+        )
         response = cognito.create_user_pool_client(
             client_name=self.client_name, **self.params
         )
@@ -205,6 +211,7 @@ class AdminUpdateProfileTestCase(unittest.TestCase):
             user_pool_id=self.user_pool_id,
             username=self.username,
             client_id=self.client_id,
+            boto3_client_kwargs=json.loads(os.environ.get("BOTO3_CLIENT_EXTRAS", "{}")),
         )
         cognito.authenticate(self.password)
 

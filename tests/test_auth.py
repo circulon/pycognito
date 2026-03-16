@@ -518,6 +518,7 @@ class AdminRenewAccessTokenTestCase(unittest.TestCase):
             user_pool_id=self.user_pool_id,
             client_id=self.client_id,
             username=self.username,
+            boto3_client_kwargs=json.loads(os.environ.get("BOTO3_CLIENT_EXTRAS", "{}")),
         )
 
     def test_admin_renew_access_token_refreshes_tokens(self):
@@ -605,6 +606,7 @@ class AdminUserGlobalSignOutTestCase(unittest.TestCase):
             user_pool_id=self.user_pool_id,
             client_id=self.client_id,
             username=self.username,
+            boto3_client_kwargs=json.loads(os.environ.get("BOTO3_CLIENT_EXTRAS", "{}")),
         )
 
     def test_admin_user_global_sign_out_self(self):
