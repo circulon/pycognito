@@ -5,12 +5,15 @@ All methods here are exercised by CognitoAuthTestCase and AWSSRPTestCase
 in test_auth.py.
 """
 
+from __future__ import annotations
+
+from ._base import CognotoBase
 from .aws_srp import AWSSRP
 from .exceptions import MFAChallengeException
 from .utils import dict_to_cognito
 
 
-class AuthMixin:
+class AuthMixin(CognotoBase):
     """Mixin providing user registration, authentication, and password operations."""
 
     # ------------------------------------------------------------------

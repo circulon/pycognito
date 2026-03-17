@@ -6,8 +6,12 @@ authentication path (auth.py) and user/group management (user_pool.py), and
 are typically enabled or disabled as a unit.
 """
 
+from __future__ import annotations
 
-class MFAMixin:
+from ._base import CognotoBase
+
+
+class MFAMixin(CognotoBase):
     """Mixin providing MFA registration, preference management, and challenge responses."""
 
     # ------------------------------------------------------------------

@@ -5,12 +5,15 @@ All methods here are exercised by CognitoUserPoolClientTestCase,
 PaginationTestCase, and AdminUpdateProfileTestCase in test_user_pool.py.
 """
 
+from __future__ import annotations
+
 from typing import List, Union
 
+from ._base import CognotoBase
 from .utils import dict_to_cognito, is_cognito_attr_list
 
 
-class UserPoolMixin:
+class UserPoolMixin(CognotoBase):
     """Mixin providing user, group, pool-client, and identity-provider operations."""
 
     # ------------------------------------------------------------------

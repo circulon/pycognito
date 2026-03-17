@@ -6,6 +6,8 @@ the lifetime of Cognito-issued JWTs.  All methods here are tested by
 the token-related cases in test_auth.py.
 """
 
+from __future__ import annotations
+
 import base64
 import json
 from os import environ
@@ -14,10 +16,11 @@ import jwt
 import pendulum
 import requests
 
+from ._base import CognotoBase
 from .exceptions import TokenVerificationException
 
 
-class TokensMixin:
+class TokensMixin(CognotoBase):
     """Mixin providing JWT verification and token-expiry management."""
 
     # ------------------------------------------------------------------
