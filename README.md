@@ -86,6 +86,7 @@ Makes working with AWS Cognito easier for Python developers.
   - [Forget Device](#forget-device)
   - [Device Methods Requiring a Live Pool](#device-methods-requiring-a-live-pool)
 - [SRP Requests Authenticator](#srp-requests-authenticator)
+- [Contributing](#contributing)
 
 ## Python Versions Supported
 
@@ -1802,3 +1803,59 @@ response = requests.get('http://test.com', auth=auth)
 - **device_group_key:** (optional) Device Group Key for a previously confirmed device
 - **device_password:** (optional) Device Password for a previously confirmed device
 - **device_name:** (optional) Friendly device name
+## Contributing
+
+Contributions are welcome — bug fixes, new features, and documentation improvements alike.
+
+### Development Setup
+
+You'll need Python 3.9+ and [Make](https://www.gnu.org/software/make/).
+
+```bash
+git clone https://github.com/circulon/pycognito.git
+cd pycognito
+````
+
+You should set up a virtual environment and run tests via pytest:
+
+```bash
+python -m venv venv
+source venv/bin/activate
+make install
+```
+
+`make install` installs the development dependencies and sets up the pre-commit hooks automatically.
+
+### Available Make Targets
+
+| Target          | Description                                               |
+|-----------------|-----------------------------------------------------------|
+| `make install`  | Install dev dependencies and set up pre-commit hooks      |
+| `make lint`     | Run `ruff` linter (no fixes applied)                      |
+| `make fprmat`   | Run `ruff` formatter (no fixes applied)                   |
+| `make lint-fix` | Run `ruff` linter and formatter (auto fix where possible) |
+| `make test`     | Run tests against the current Python version via tox      |
+| `make clean`    | Remove build artefacts, `.tox`, and coverage files        |
+
+### Running Tests
+
+Tests use [tox](https://tox.wiki/) to run against all supported Python versions (3.9–3.13) in isolated environments:
+```bash
+make test        # current Python only
+```
+
+Coverage is enforced at 80%. The test suite uses [moto](https://github.com/getmoto/moto) to mock AWS Cognito — no live AWS account is required.
+
+### Code Style
+
+This project uses [ruff](https://docs.astral.sh/ruff/) for linting and formatting. Pre-commit hooks run `ruff` automatically on every commit. To run manually:
+```bash
+make lint
+```
+
+### Submitting a Pull Request
+
+1. Fork the repository and create a branch from `main`
+2. Make your changes and ensure `make ci` passes locally
+3. Add or update tests to cover your change
+4. Open a pull request with a clear description of what changed and why

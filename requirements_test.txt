@@ -1,4 +1,3 @@
-pendulum>=3.1
 ruff
 # minimum version of coverage for python 3.9+
 coverage>=7.10
