@@ -78,7 +78,7 @@ class UtilsTestCase(unittest.TestCase):
             username=self.username,
             password=self.password,
             user_pool_id=self.user_pool_id,
-            user_pool_region="ap-southeast-2",
+            user_pool_region="us-east-1",
             client_id=self.client_id,
             boto3_client_kwargs=json.loads(os.environ.get("BOTO3_CLIENT_EXTRAS", "{}")),
         )
