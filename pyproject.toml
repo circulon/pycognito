@@ -17,7 +17,7 @@ maintainers = [
 ]
 keywords = ["cognito", "aws", "authentication"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
@@ -30,7 +30,6 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 
-# Runtime dependencies only — no test/dev tools here
 dependencies = [
     "boto3>=1.40.7",
     "pendulum>=3.0",
@@ -44,24 +43,8 @@ Repository         = "https://github.com/circulon/pycognito"
 "Bug Tracker"      = "https://github.com/circulon/pycognito/issues"
 "Original Project" = "https://github.com/pvizeli/pycognito"
 
-[project.optional-dependencies]
-dev = [
-    "pycognito[test]",
-    "pre-commit",
-    "boto3-stubs[cognito-idp]",
-]
-test = [
-    "botocore>=1.40.7",
-    "pytest>=8",
-    "coverage>=7.10",
-    "moto[cognitoidp]>=5",
-    "requests-mock>=1.11",
-    "ruff>=0.15",
-]
-
 # ---------------------------------------------------------------------------
 # Version sourced exclusively from git tags — no manual bumping needed.
-# Tag a release:  git tag v1.2.3 && git push --tags
 # ---------------------------------------------------------------------------
 [tool.setuptools_scm]
 write_to = "src/pycognito/_version.py"

@@ -1,11 +1,15 @@
-
-.PHONY: install
-install:
-	pip install ".[dev]"
+.PHONY: init
+init: init-ci
+	pip install pre-commit
 	pre-commit install
 
+.PHONY: init-ci
+init-ci:
+	pip install -r requirements.txt
+	pip install -r requirements_test.txt
+
 .PHONY: lint
-lint: format
+lint:
 	ruff check src tests
 
 .PHONY: format
@@ -18,9 +22,5 @@ lint-fix:
 	ruff format src tests
 
 .PHONY: test
-test: lint clean
-	tox -e tests
-
-.PHONY: clean
-clean:
-	rm -rf .tox dist build htmlcov .coverage
+test:
+	pytest tests
