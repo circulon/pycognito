@@ -14,32 +14,43 @@ Makes working with AWS Cognito easier for Python developers.
 - [Environment Variables](#environment-variables)
   - [COGNITO_JWKS](#cognitojwks) (optional)
 - [Cognito Utility Class](#cognito-utility-class) `pycognito.Cognito`
-  - [Cognito Methods](#cognito-methods)
+  - [Cognito Attributes](#cognito-attributes)
+  - [Authentication](#authentication)
     - [Register](#register)
     - [Authenticate](#authenticate)
     - [Admin Authenticate](#admin-authenticate)
     - [New Password Challenge](#new-password-challenge)
+    - [Confirm Sign Up](#confirm-sign-up)
+    - [Admin Confirm Sign Up](#admin-confirm-sign-up)
+    - [Resend Confirmation Code](#resend-confirmation-code)
+  - [Password Management](#password-management)
     - [Initiate Forgot Password](#initiate-forgot-password)
     - [Confirm Forgot Password](#confirm-forgot-password)
     - [Change Password](#change-password)
     - [Admin Reset Password](#admin-reset-password)
-    - [Confirm Sign Up](#confirm-sign-up)
-    - [Admin Confirm Sign Up](#admin-confirm-sign-up)
-    - [Resend Confirmation Code](#resend-confirmation-code)
-    - [Update Profile](#update-profile)
-    - [Admin Update Profile](#admin-update-profile)
-    - [Send Verification](#send-verification)
-    - [Validate Verification](#validate-verification)
+    - [Admin Set User Password](#admin-set-user-password)
+  - [User Management](#user-management)
     - [Get User Object](#get-user-object)
     - [Get User](#get-user)
     - [Get Users](#get-users)
     - [Admin Get User](#admin-get-user)
     - [Admin Create User](#admin-create-user)
-    - [Admin Set User Password](#admin-set-user-password)
+    - [Update Profile](#update-profile)
+    - [Admin Update Profile](#admin-update-profile)
+    - [Send Verification](#send-verification)
+    - [Validate Verification](#validate-verification)
     - [Admin Enable User](#admin-enable-user)
     - [Admin Disable User](#admin-disable-user)
     - [Delete User](#delete-user)
     - [Admin Delete User](#admin-delete-user)
+  - [Token & Session Management](#token--session-management)
+    - [Check Token](#check-token)
+    - [Verify Tokens](#verify-tokens)
+    - [Renew Access Token](#renew-access-token)
+    - [Admin Renew Access Token](#admin-renew-access-token)
+    - [Logout](#logout)
+    - [Admin User Global Sign Out](#admin-user-global-sign-out)
+  - [Group Management](#group-management)
     - [Get Group Object](#get-group-object)
     - [Get Group](#get-group)
     - [Get Groups](#get-groups)
@@ -50,31 +61,29 @@ Makes working with AWS Cognito easier for Python developers.
     - [Admin Add User To Group](#admin-add-user-to-group)
     - [Admin Remove User From Group](#admin-remove-user-from-group)
     - [Admin List Groups For User](#admin-list-groups-for-user)
+  - [User Pool & Client Management](#user-pool--client-management)
+    - [Describe User Pool](#describe-user-pool)
+    - [Update User Pool](#update-user-pool)
     - [List User Pool Clients](#list-user-pool-clients)
     - [Create User Pool Client](#create-user-pool-client)
     - [Describe User Pool Client](#describe-user-pool-client)
     - [Delete User Pool Client](#delete-user-pool-client)
     - [Admin Update User Pool Client](#admin-update-user-pool-client)
-    - [Describe User Pool](#describe-user-pool)
-    - [Update User Pool](#update-user-pool)
+  - [Identity Providers](#identity-providers)
     - [Admin Create Identity Provider](#admin-create-identity-provider)
     - [Admin Describe Identity Provider](#admin-describe-identity-provider)
     - [Admin Update Identity Provider](#admin-update-identity-provider)
     - [Admin Link Provider For User](#admin-link-provider-for-user)
-    - [Check Token](#check-token)
-    - [Verify Tokens](#verify-tokens)
-    - [Renew Access Token](#renew-access-token)
-    - [Admin Renew Access Token](#admin-renew-access-token)
-    - [Logout](#logout)
-    - [Admin User Global Sign Out](#admin-user-global-sign-out)
+    - [Admin Disable Provider For User](#admin-disable-provider-for-user)
+  - [Multi-Factor Authentication (MFA)](#multi-factor-authentication-mfa)
     - [Associate Software Token](#associate-software-token)
     - [Verify Software Token](#verify-software-token)
     - [Set User MFA Preference](#set-user-mfa-preference)
     - [Admin Set User MFA Preference](#admin-set-user-mfa-preference)
     - [Get User Pool MFA Config](#get-user-pool-mfa-config)
     - [Set User Pool MFA Config](#set-user-pool-mfa-config)
-    - [Respond to Software Token MFA challenge](#respond-to-software-token-mfa-challenge)
-    - [Respond to SMS MFA challenge](#respond-to-sms-mfa-challenge)
+    - [Respond to Software Token MFA Challenge](#respond-to-software-token-mfa-challenge)
+    - [Respond to SMS MFA Challenge](#respond-to-sms-mfa-challenge)
 - [Cognito SRP Utility](#cognito-srp-utility)
   - [Using AWSSRP](#using-awssrp)
 - [Device Authentication Support](#device-authentication-support)
@@ -87,6 +96,8 @@ Makes working with AWS Cognito easier for Python developers.
   - [Device Methods Requiring a Live Pool](#device-methods-requiring-a-live-pool)
 - [SRP Requests Authenticator](#srp-requests-authenticator)
 - [Contributing](#contributing)
+
+---
 
 ## Python Versions Supported
 
@@ -112,6 +123,8 @@ Makes working with AWS Cognito easier for Python developers.
 ```commandline
 COGNITO_JWKS={"keys": [{"alg": "RS256","e": "AQAB","kid": "123456789ABCDEFGHIJKLMNOP","kty": "RSA","n": "123456789ABCDEFGHIJKLMNOP","use": "sig"},{"alg": "RS256","e": "AQAB","kid": "123456789ABCDEFGHIJKLMNOP","kty": "RSA","n": "123456789ABCDEFGHIJKLMNOP","use": "sig"}]}
 ```
+
+---
 
 ## Cognito Utility Class
 
@@ -191,6 +204,8 @@ u = Cognito('your-user-pool-id','your-client-id',
 u.verify_tokens() # See method doc below; may throw an exception
 ```
 
+---
+
 ## Cognito Attributes
 
 After any authentication or other explicit verification of tokens, the following additional attributes will be available:
@@ -198,7 +213,11 @@ After any authentication or other explicit verification of tokens, the following
 - `id_claims` — A dict of verified claims from the id token
 - `access_claims` — A dict of verified claims from the access token
 
-## Cognito Methods
+---
+
+## Authentication
+
+Methods for registering users, signing in, and confirming accounts.
 
 #### Register
 
@@ -291,6 +310,68 @@ u.new_password_challenge(password='temporary-password', new_password='permanent-
 - **password:** The user's current (temporary) password
 - **new_password:** The new password the user wants to set
 
+#### Confirm Sign Up
+
+Use the confirmation code that is sent via email or text to confirm the user's account
+
+```python
+from pycognito import Cognito
+
+u = Cognito('your-user-pool-id','your-client-id')
+
+u.confirm_sign_up('users-conf-code',username='bob')
+```
+
+**Arguments**
+
+- **confirmation_code:** Confirmation code sent via text or email
+- **username:** User's username
+
+#### Admin Confirm Sign Up
+
+Confirm a user's registration as an admin without requiring a confirmation code. Useful for programmatically confirming test users or automating post-registration workflows.
+
+```python
+from pycognito import Cognito
+
+u = Cognito('your-user-pool-id','your-client-id',
+    username='bob')
+
+u.admin_confirm_sign_up()
+```
+
+You can also confirm a different user by passing a username explicitly:
+
+```python
+u.admin_confirm_sign_up(username='alice')
+```
+
+**Arguments**
+
+- **username:** (optional) User's username. Defaults to `self.username`.
+
+#### Resend Confirmation Code
+
+Resend the confirmation code message to a user who has not yet confirmed their account.
+
+```python
+from pycognito import Cognito
+
+u = Cognito('your-user-pool-id','your-client-id')
+
+u.resend_confirmation_code(username='bob')
+```
+
+**Arguments**
+
+- **username:** User's username
+
+---
+
+## Password Management
+
+Methods for resetting, changing, and managing user passwords.
+
 #### Initiate Forgot Password
 
 Sends a verification code to the user to use to change their password.
@@ -362,151 +443,29 @@ u.admin_reset_password(username='bob')
 - **username:** The user to reset
 - **client_metadata:** (optional) Metadata forwarded to Lambda triggers
 
-#### Confirm Sign Up
+#### Admin Set User Password
 
-Use the confirmation code that is sent via email or text to confirm the user's account
-
-```python
-from pycognito import Cognito
-
-u = Cognito('your-user-pool-id','your-client-id')
-
-u.confirm_sign_up('users-conf-code',username='bob')
-```
-
-**Arguments**
-
-- **confirmation_code:** Confirmation code sent via text or email
-- **username:** User's username
-
-#### Admin Confirm Sign Up
-
-Confirm a user's registration as an admin without requiring a confirmation code. Useful for programmatically confirming test users or automating post-registration workflows.
-
-```python
-from pycognito import Cognito
-
-u = Cognito('your-user-pool-id','your-client-id',
-    username='bob')
-
-u.admin_confirm_sign_up()
-```
-
-You can also confirm a different user by passing a username explicitly:
-
-```python
-u.admin_confirm_sign_up(username='alice')
-```
-
-**Arguments**
-
-- **username:** (optional) User's username. Defaults to `self.username`.
-
-#### Resend Confirmation Code
-
-Resend the confirmation code message to a user who has not yet confirmed their account.
+Explicitly set a user's password. Setting `permanent=True` moves the user to `CONFIRMED` status; `permanent=False` leaves them in `FORCE_CHANGE_PASSWORD`.
 
 ```python
 from pycognito import Cognito
 
 u = Cognito('your-user-pool-id','your-client-id')
 
-u.resend_confirmation_code(username='bob')
+u.admin_set_user_password(username='bob', password='NewPass1234!', permanent=True)
 ```
 
 **Arguments**
 
-- **username:** User's username
+- **username:** The Cognito username
+- **password:** The password to set
+- **permanent:** `True` → status `CONFIRMED`; `False` → `FORCE_CHANGE_PASSWORD` (default: `False`)
 
-#### Update Profile
+---
 
-Update the user's profile
+## User Management
 
-```python
-from pycognito import Cognito
-
-u = Cognito('your-user-pool-id','your-client-id',
-    id_token='id-token',refresh_token='refresh-token',
-    access_token='access-token')
-
-u.update_profile({'given_name':'Edward','family_name':'Smith',},attr_map=dict())
-```
-
-**Arguments**
-
-- **attrs:** Dictionary of attribute name, values
-- **attr_map:** Dictionary map from Cognito attributes to attribute names we would like to show to our users
-
-#### Admin Update Profile
-
-Update the specified user's attributes using admin super privileges. Accepts either a plain dict or a pre-formatted Cognito attribute list.
-
-```python
-from pycognito import Cognito
-
-u = Cognito('your-user-pool-id','your-client-id',
-    username='bob')
-
-# Update self.username using a plain dict
-u.admin_update_profile(attrs={'given_name': 'Robert'})
-
-# Update a different user
-u.admin_update_profile(attrs={'given_name': 'Alice'}, username='alice')
-
-# Map local attribute names to Cognito attribute names
-u.admin_update_profile(attrs={'first': 'Robert'}, attr_map={'given_name': 'first'})
-
-# Supply a pre-formatted Cognito attribute list
-u.admin_update_profile(
-    attrs=[{'Name': 'given_name', 'Value': 'Robert'}],
-    username='bob'
-)
-```
-
-**Arguments**
-
-- **attrs:** Dict of attribute names/values, or a pre-formatted Cognito attribute list
-- **attr_map:** (optional) Mapping from local attribute names to Cognito attribute names
-- **username:** (optional) Username to update. Defaults to `self.username`.
-
-#### Send Verification
-
-Send verification email or text for either the email or phone attributes.
-
-```python
-from pycognito import Cognito
-
-u = Cognito('your-user-pool-id','your-client-id',
-    id_token='id-token',refresh_token='refresh-token',
-    access_token='access-token')
-
-u.send_verification(attribute='email')
-```
-
-**Arguments**
-
-- **attribute:** - The attribute (email or phone) that needs to be verified
-
-#### Validate Verification
-
-Verify a user attribute using the confirmation code sent by `send_verification`.
-
-```python
-from pycognito import Cognito
-
-u = Cognito('your-user-pool-id','your-client-id',
-    id_token='id-token',refresh_token='refresh-token',
-    access_token='access-token')
-
-u.send_verification(attribute='email')
-code = input('Enter the verification code sent to your email: ')
-u.validate_verification(confirmation_code=code, attribute='email')
-```
-
-**Arguments**
-
-- **confirmation_code:** Code sent by `send_verification`
-- **attribute:** The attribute to verify (default: `"email"`)
+Methods for creating, reading, updating, and deleting users, as well as managing their attributes and verification status.
 
 #### Get User Object
 
@@ -634,23 +593,95 @@ u.admin_create_user(
 - **attr_map:** (optional) Attribute map to Cognito's attribute names
 - **\*\*kwargs:** Additional user attributes (e.g. `email`, `given_name`, `phone_number`)
 
-#### Admin Set User Password
+#### Update Profile
 
-Explicitly set a user's password. Setting `permanent=True` moves the user to `CONFIRMED` status; `permanent=False` leaves them in `FORCE_CHANGE_PASSWORD`.
+Update the user's profile
 
 ```python
 from pycognito import Cognito
 
-u = Cognito('your-user-pool-id','your-client-id')
+u = Cognito('your-user-pool-id','your-client-id',
+    id_token='id-token',refresh_token='refresh-token',
+    access_token='access-token')
 
-u.admin_set_user_password(username='bob', password='NewPass1234!', permanent=True)
+u.update_profile({'given_name':'Edward','family_name':'Smith',},attr_map=dict())
 ```
 
 **Arguments**
 
-- **username:** The Cognito username
-- **password:** The password to set
-- **permanent:** `True` → status `CONFIRMED`; `False` → `FORCE_CHANGE_PASSWORD` (default: `False`)
+- **attrs:** Dictionary of attribute name, values
+- **attr_map:** Dictionary map from Cognito attributes to attribute names we would like to show to our users
+
+#### Admin Update Profile
+
+Update the specified user's attributes using admin super privileges. Accepts either a plain dict or a pre-formatted Cognito attribute list.
+
+```python
+from pycognito import Cognito
+
+u = Cognito('your-user-pool-id','your-client-id',
+    username='bob')
+
+# Update self.username using a plain dict
+u.admin_update_profile(attrs={'given_name': 'Robert'})
+
+# Update a different user
+u.admin_update_profile(attrs={'given_name': 'Alice'}, username='alice')
+
+# Map local attribute names to Cognito attribute names
+u.admin_update_profile(attrs={'first': 'Robert'}, attr_map={'given_name': 'first'})
+
+# Supply a pre-formatted Cognito attribute list
+u.admin_update_profile(
+    attrs=[{'Name': 'given_name', 'Value': 'Robert'}],
+    username='bob'
+)
+```
+
+**Arguments**
+
+- **attrs:** Dict of attribute names/values, or a pre-formatted Cognito attribute list
+- **attr_map:** (optional) Mapping from local attribute names to Cognito attribute names
+- **username:** (optional) Username to update. Defaults to `self.username`.
+
+#### Send Verification
+
+Send verification email or text for either the email or phone attributes.
+
+```python
+from pycognito import Cognito
+
+u = Cognito('your-user-pool-id','your-client-id',
+    id_token='id-token',refresh_token='refresh-token',
+    access_token='access-token')
+
+u.send_verification(attribute='email')
+```
+
+**Arguments**
+
+- **attribute:** - The attribute (email or phone) that needs to be verified
+
+#### Validate Verification
+
+Verify a user attribute using the confirmation code sent by `send_verification`.
+
+```python
+from pycognito import Cognito
+
+u = Cognito('your-user-pool-id','your-client-id',
+    id_token='id-token',refresh_token='refresh-token',
+    access_token='access-token')
+
+u.send_verification(attribute='email')
+code = input('Enter the verification code sent to your email: ')
+u.validate_verification(confirmation_code=code, attribute='email')
+```
+
+**Arguments**
+
+- **confirmation_code:** Code sent by `send_verification`
+- **attribute:** The attribute to verify (default: `"email"`)
 
 #### Admin Enable User
 
@@ -718,6 +749,132 @@ u.admin_delete_user()
 **Arguments**
 
 No arguments — deletes `self.username` from `self.user_pool_id`.
+
+---
+
+## Token & Session Management
+
+Methods for checking, verifying, refreshing, and invalidating tokens.
+
+#### Check Token
+
+Checks the exp attribute of the access_token and either refreshes the tokens by calling the renew_access_tokens method or does nothing. **IMPORTANT:** Access token is required
+
+```python
+u = Cognito('your-user-pool-id','your-client-id',
+    id_token='id-token',refresh_token='refresh-token',
+    access_token='access-token')
+
+u.check_token()
+```
+
+**Arguments**
+
+No arguments for check_token
+
+#### Verify Tokens
+
+Verifies the current `id_token` and `access_token`.
+An exception will be thrown if they do not pass verification.
+It can be useful to call this method immediately after instantiation when you're providing externally-remembered tokens to the `Cognito()` constructor.
+Note that if you're calling `check_tokens()` after instantitation, you'll still want to call `verify_tokens()` afterwards it in case it did nothing.
+This method also ensures that the `id_claims` and `access_claims` attributes are set with the verified claims from each token.
+
+```python
+u = Cognito('your-user-pool-id','your-client-id',
+    id_token='id-token',refresh_token='refresh-token',
+    access_token='access-token')
+
+u.check_tokens()  # Optional, if you want to maybe renew the tokens
+u.verify_tokens()
+```
+
+**Arguments**
+
+No arguments for verify_tokens
+
+#### Renew Access Token
+
+Refreshes the access and id tokens using the stored refresh token. Called automatically by `check_token` when the access token has expired. If `device_key` is set on the instance it is included in the auth parameters automatically.
+
+```python
+from pycognito import Cognito
+
+u = Cognito('your-user-pool-id','your-client-id',
+    id_token='id-token',refresh_token='refresh-token',
+    access_token='access-token')
+
+u.renew_access_token()
+```
+
+**Arguments**
+
+No arguments
+
+#### Admin Renew Access Token
+
+Admin-privilege equivalent of `renew_access_token`. Uses `admin_initiate_auth` with `REFRESH_TOKEN_AUTH` so that server-side processes can refresh tokens without user interaction. Requires the instance to already hold a valid `refresh_token`.
+
+```python
+from pycognito import Cognito
+
+u = Cognito('your-user-pool-id','your-client-id',
+    username='bob',
+    refresh_token='refresh-token')
+
+u.admin_renew_access_token()
+```
+
+**Arguments**
+
+No arguments
+
+#### Logout
+
+Logs the user out of all clients and removes the expires_in, expires_datetime, id_token, refresh_token, access_token, and token_type attributes.
+
+```python
+from pycognito import Cognito
+
+#If you don't use your tokens then you will need to
+#use your username and password and call the authenticate method
+u = Cognito('your-user-pool-id','your-client-id',
+    id_token='id-token',refresh_token='refresh-token',
+    access_token='access-token')
+
+u.logout()
+```
+
+**Arguments**
+
+No arguments for logout
+
+#### Admin User Global Sign Out
+
+Invalidates all tokens for a user across all clients, regardless of which client they used to sign in. Requires admin credentials.
+
+```python
+from pycognito import Cognito
+
+u = Cognito('your-user-pool-id','your-client-id',
+    username='bob')
+
+# Sign out self.username
+u.admin_user_global_sign_out()
+
+# Or sign out a different user explicitly
+u.admin_user_global_sign_out(username='alice')
+```
+
+**Arguments**
+
+- **username:** (optional) Username to sign out. Defaults to `self.username`.
+
+---
+
+## Group Management
+
+Methods for creating and managing groups and group membership.
 
 #### Get Group Object
 
@@ -926,6 +1083,56 @@ group_names = u.admin_list_groups_for_user(username='bob')
 
 - **username:** The username to query
 
+---
+
+## User Pool & Client Management
+
+Methods for inspecting and configuring user pools and their application clients.
+
+#### Describe User Pool
+
+Return the configuration details of a user pool.
+
+```python
+from pycognito import Cognito
+
+u = Cognito('your-user-pool-id','your-client-id')
+
+pool = u.describe_user_pool()
+print(pool['Name'], pool['MfaConfiguration'])
+```
+
+**Arguments**
+
+- **pool_id:** (optional) User pool ID. Defaults to `self.user_pool_id`.
+
+#### Update User Pool
+
+Update configuration properties of a user pool.
+
+```python
+from pycognito import Cognito
+
+u = Cognito('your-user-pool-id','your-client-id')
+
+u.update_user_pool(
+    Policies={
+        'PasswordPolicy': {
+            'MinimumLength': 12,
+            'RequireUppercase': True,
+            'RequireLowercase': True,
+            'RequireNumbers': True,
+            'RequireSymbols': False
+        }
+    }
+)
+```
+
+**Arguments**
+
+- **pool_id:** (optional) User pool ID. Defaults to `self.user_pool_id`.
+- **\*\*kwargs:** `UpdateUserPool` parameters such as `Policies`, `MfaConfiguration`, `LambdaConfig`, `EmailConfiguration`
+
 #### List User Pool Clients
 
 Returns a list of client dicts of the specified user pool (defaults to user pool set on instantiation if not specified). Requires developer credentials.
@@ -1042,49 +1249,11 @@ u.admin_update_user_pool_client(
 - **client_id:** The client ID to update
 - **\*\*kwargs:** `UpdateUserPoolClient` parameters to change
 
-#### Describe User Pool
+---
 
-Return the configuration details of a user pool.
+## Identity Providers
 
-```python
-from pycognito import Cognito
-
-u = Cognito('your-user-pool-id','your-client-id')
-
-pool = u.describe_user_pool()
-print(pool['Name'], pool['MfaConfiguration'])
-```
-
-**Arguments**
-
-- **pool_id:** (optional) User pool ID. Defaults to `self.user_pool_id`.
-
-#### Update User Pool
-
-Update configuration properties of a user pool.
-
-```python
-from pycognito import Cognito
-
-u = Cognito('your-user-pool-id','your-client-id')
-
-u.update_user_pool(
-    Policies={
-        'PasswordPolicy': {
-            'MinimumLength': 12,
-            'RequireUppercase': True,
-            'RequireLowercase': True,
-            'RequireNumbers': True,
-            'RequireSymbols': False
-        }
-    }
-)
-```
-
-**Arguments**
-
-- **pool_id:** (optional) User pool ID. Defaults to `self.user_pool_id`.
-- **\*\*kwargs:** `UpdateUserPool` parameters such as `Policies`, `MfaConfiguration`, `LambdaConfig`, `EmailConfiguration`
+Methods for configuring and linking federated identity providers (Google, Facebook, SAML, OIDC, etc.).
 
 #### Admin Create Identity Provider
 
@@ -1206,119 +1375,11 @@ u.admin_disable_provider_for_user(
 - **provider_name:** The identity provider name
 - **provider_attribute_value:** The provider's unique identifier for the user to unlink
 
-#### Check Token
+---
 
-Checks the exp attribute of the access_token and either refreshes the tokens by calling the renew_access_tokens method or does nothing. **IMPORTANT:** Access token is required
+## Multi-Factor Authentication (MFA)
 
-```python
-u = Cognito('your-user-pool-id','your-client-id',
-    id_token='id-token',refresh_token='refresh-token',
-    access_token='access-token')
-
-u.check_token()
-```
-
-**Arguments**
-
-No arguments for check_token
-
-#### Verify Tokens
-
-Verifies the current `id_token` and `access_token`.
-An exception will be thrown if they do not pass verification.
-It can be useful to call this method immediately after instantiation when you're providing externally-remembered tokens to the `Cognito()` constructor.
-Note that if you're calling `check_tokens()` after instantitation, you'll still want to call `verify_tokens()` afterwards it in case it did nothing.
-This method also ensures that the `id_claims` and `access_claims` attributes are set with the verified claims from each token.
-
-```python
-u = Cognito('your-user-pool-id','your-client-id',
-    id_token='id-token',refresh_token='refresh-token',
-    access_token='access-token')
-
-u.check_tokens()  # Optional, if you want to maybe renew the tokens
-u.verify_tokens()
-```
-
-**Arguments**
-
-No arguments for verify_tokens
-
-#### Renew Access Token
-
-Refreshes the access and id tokens using the stored refresh token. Called automatically by `check_token` when the access token has expired. If `device_key` is set on the instance it is included in the auth parameters automatically.
-
-```python
-from pycognito import Cognito
-
-u = Cognito('your-user-pool-id','your-client-id',
-    id_token='id-token',refresh_token='refresh-token',
-    access_token='access-token')
-
-u.renew_access_token()
-```
-
-**Arguments**
-
-No arguments
-
-#### Admin Renew Access Token
-
-Admin-privilege equivalent of `renew_access_token`. Uses `admin_initiate_auth` with `REFRESH_TOKEN_AUTH` so that server-side processes can refresh tokens without user interaction. Requires the instance to already hold a valid `refresh_token`.
-
-```python
-from pycognito import Cognito
-
-u = Cognito('your-user-pool-id','your-client-id',
-    username='bob',
-    refresh_token='refresh-token')
-
-u.admin_renew_access_token()
-```
-
-**Arguments**
-
-No arguments
-
-#### Logout
-
-Logs the user out of all clients and removes the expires_in, expires_datetime, id_token, refresh_token, access_token, and token_type attributes.
-
-```python
-from pycognito import Cognito
-
-#If you don't use your tokens then you will need to
-#use your username and password and call the authenticate method
-u = Cognito('your-user-pool-id','your-client-id',
-    id_token='id-token',refresh_token='refresh-token',
-    access_token='access-token')
-
-u.logout()
-```
-
-**Arguments**
-
-No arguments for logout
-
-#### Admin User Global Sign Out
-
-Invalidates all tokens for a user across all clients, regardless of which client they used to sign in. Requires admin credentials.
-
-```python
-from pycognito import Cognito
-
-u = Cognito('your-user-pool-id','your-client-id',
-    username='bob')
-
-# Sign out self.username
-u.admin_user_global_sign_out()
-
-# Or sign out a different user explicitly
-u.admin_user_global_sign_out(username='alice')
-```
-
-**Arguments**
-
-- **username:** (optional) Username to sign out. Defaults to `self.username`.
+Methods for setting up, configuring, and responding to MFA challenges (TOTP software tokens and SMS).
 
 #### Associate Software Token
 
@@ -1484,7 +1545,7 @@ u.set_user_pool_mfa_config(
 - **pool_id:** (optional) User pool ID. Defaults to `self.user_pool_id`.
 - **\*\*kwargs:** `SetUserPoolMfaConfig` parameters such as `MfaConfiguration`, `SmsMfaConfiguration`, `SoftwareTokenMfaConfiguration`
 
-#### Respond to Software Token MFA challenge
+#### Respond to Software Token MFA Challenge
 
 Responds when a Software Token MFA challenge is requested at login.
 
@@ -1532,7 +1593,7 @@ u.respond_to_software_token_mfa_challenge(code, mfa_tokens)
 - **code:** 6-digit code generated by the TOTP generator app
 - **mfa_tokens:** mfa_token stored in MFAChallengeException. Not required if you have not regenerated the Cognito instance.
 
-#### Respond to SMS MFA challenge
+#### Respond to SMS MFA Challenge
 
 Responds when a SMS MFA challenge is requested at login.
 
@@ -1580,6 +1641,8 @@ u.respond_to_sms_mfa_challenge(code, mfa_tokens)
 - **code:** 6-digit code you received by SMS
 - **mfa_tokens:** mfa_token stored in MFAChallengeException. Not required if you have not regenerated the Cognito instance.
 
+---
+
 ## Cognito SRP Utility
 
 The `AWSSRP` class is used to perform [SRP(Secure Remote Password protocol)](https://www.ietf.org/rfc/rfc2945.txt) authentication.
@@ -1602,6 +1665,8 @@ aws = AWSSRP(username='username', password='password', pool_id='user_pool_id',
              client_id='client_id', client=client)
 tokens = aws.authenticate_user()
 ```
+
+---
 
 ## Device Authentication Support
 
@@ -1637,8 +1702,8 @@ response, device_password = user.confirm_device(tokens=tokens)
 ### Updating Device Status
 
 The `update_device_status` class method is used to update whether or not your device should be remembered. This method takes
-three inputs, `is_remembered`, `access_token` and `device_key`. `is_remembered` is a boolean value, which sets the device status as 
-`"remembered"` on `True` and `"not_remembered"` on `False`, `access_token` is the Access Token provided by Cognito and `device_key` is the key 
+three inputs, `is_remembered`, `access_token` and `device_key`. `is_remembered` is a boolean value, which sets the device status as
+`"remembered"` on `True` and `"not_remembered"` on `False`, `access_token` is the Access Token provided by Cognito and `device_key` is the key
 provided by the `authenticate_user` method.
 
 ```python
@@ -1763,6 +1828,8 @@ u.admin_forget_device(device_key='us-east-1_abc123', username='bob')
 - **device_key:** The device key to forget
 - **username:** (optional) Username who owns the device. Defaults to `self.username`.
 
+---
+
 ## SRP Requests Authenticator
 
 `pycognito.utils.RequestsSrpAuth` is a [Requests](https://docs.python-requests.org/en/latest/)
@@ -1803,6 +1870,9 @@ response = requests.get('http://test.com', auth=auth)
 - **device_group_key:** (optional) Device Group Key for a previously confirmed device
 - **device_password:** (optional) Device Password for a previously confirmed device
 - **device_name:** (optional) Friendly device name
+
+---
+
 ## Contributing
 
 Contributions are welcome — bug fixes, new features, and documentation improvements alike.
@@ -1821,27 +1891,31 @@ You should set up a virtual environment and run tests via pytest:
 ```bash
 python -m venv venv
 source venv/bin/activate
-make install
+make init
 ```
 
-`make install` installs the development dependencies and sets up the pre-commit hooks automatically.
+`make init` installs the development dependencies and sets up the pre-commit hooks automatically.
 
 ### Available Make Targets
 
-| Target          | Description                                               |
-|-----------------|-----------------------------------------------------------|
-| `make install`  | Install dev dependencies and set up pre-commit hooks      |
-| `make lint`     | Run `ruff` linter (no fixes applied)                      |
-| `make fprmat`   | Run `ruff` formatter (no fixes applied)                   |
-| `make lint-fix` | Run `ruff` linter and formatter (auto fix where possible) |
-| `make test`     | Run tests against the current Python version via tox      |
-| `make clean`    | Remove build artefacts, `.tox`, and coverage files        |
+| Target           | Description                                               |
+|------------------|-----------------------------------------------------------|
+| `make init`      | Install dev dependencies and set up pre-commit hooks      |
+| `make lint`      | Run `ruff` linter (no fixes applied)                      |
+| `make format`    | Run `ruff` formatter (no fixes applied)                   |
+| `make lint-fix`  | Run `ruff` linter and formatter (auto fix where possible) |
+| `make test`      | Run tests against the current Python version via tox      |
 
 ### Running Tests
 
-Tests use [tox](https://tox.wiki/) to run against all supported Python versions (3.9–3.13) in isolated environments:
+Tests use `pytest` to run against the current Python version:
 ```bash
 make test        # current Python only
+```
+To test against all compatible Python versions (3.9–3.13) in isolated environments install `act`
+and simulate a github push request
+```bash
+act push
 ```
 
 Coverage is enforced at 80%. The test suite uses [moto](https://github.com/getmoto/moto) to mock AWS Cognito — no live AWS account is required.
